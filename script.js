@@ -3,7 +3,39 @@ const generateBtn = document.getElementById("generate-btn");
 const sortBtn = document.getElementById("sort-btn");
 const arraySizeInput = document.getElementById("array-size");
 const speedInput = document.getElementById("speed");
+const soundToggle = document.getElementById("sound-toggle");
 const algorithmSelect = document.getElementById("algorithm-select");
+
+// Sound Context
+let audioCtx = null;
+
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+}
+
+function playNote(freq, type = "sine") {
+    if (!soundToggle.checked) return;
+    if (!audioCtx) initAudio();
+
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    osc.type = type;
+    osc.frequency.value = freq;
+
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    osc.start();
+
+    // Short beep
+    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.1);
+
+    osc.stop(audioCtx.currentTime + 0.1);
+}
 
 let array = [];
 let isSorting = false;
@@ -63,6 +95,7 @@ const toggleControls = (disable) => {
 generateBtn.addEventListener("click", generateArray);
 arraySizeInput.addEventListener("input", generateArray);
 sortBtn.addEventListener("click", () => {
+    initAudio(); // Initialize audio context on user interaction
     startSort();
 });
 
@@ -91,6 +124,7 @@ async function bubbleSort(bars) {
         for (let j = 0; j < len - i - 1; j++) {
             bars[j].classList.add('bar-compare');
             bars[j + 1].classList.add('bar-compare');
+            playNote(200 + parseInt(bars[j].style.height) * 5); // Compare sound
             await sleep(getDelay());
 
             const h1 = parseInt(bars[j].style.height);
@@ -99,6 +133,7 @@ async function bubbleSort(bars) {
             if (h1 > h2) {
                 bars[j].classList.replace('bar-compare', 'bar-swap');
                 bars[j + 1].classList.replace('bar-compare', 'bar-swap');
+                playNote(200 + h1 * 5, "square"); // Swap sound
                 await sleep(getDelay());
 
                 bars[j].style.height = `${h2}%`;
@@ -126,6 +161,7 @@ async function selectionSort(bars) {
 
         for (let j = i + 1; j < len; j++) {
             bars[j].classList.add('bar-compare');
+            playNote(200 + parseInt(bars[j].style.height) * 5);
             await sleep(getDelay());
 
             const h1 = parseInt(bars[j].style.height);
@@ -149,6 +185,7 @@ async function selectionSort(bars) {
             await sleep(getDelay());
 
             bars[minIdx].classList.remove('bar-swap');
+            playNote(200 + parseInt(bars[i].style.height) * 5, "square");
             bars[minIdx].classList.remove('bar-compare');
         }
 
@@ -166,6 +203,7 @@ async function insertionSort(bars) {
         let j = i;
         const height = bars[i].style.height;
         bars[i].classList.add('bar-compare');
+        playNote(200 + parseInt(bars[i].style.height) * 5);
         await sleep(getDelay());
 
         while (j > 0) {
@@ -176,6 +214,7 @@ async function insertionSort(bars) {
             const hCurr = parseInt(bars[j].style.height);
 
             if (hPrev > hCurr) {
+                playNote(200 + hCurr * 5, "square");
                 // Swap visual
                 bars[j].style.height = bars[j - 1].style.height;
                 bars[j - 1].style.height = height; // technically we swap bubbling down
@@ -217,10 +256,12 @@ async function merge(bars, start, mid, end) {
     // Create temp arrays
     for (let i = start; i <= mid; i++) {
         bars[i].classList.add('bar-compare');
+        playNote(200 + parseInt(bars[i].style.height) * 5);
         leftArr.push(bars[i].style.height);
     }
     for (let i = mid + 1; i <= end; i++) {
         bars[i].classList.add('bar-compare');
+        playNote(200 + parseInt(bars[i].style.height) * 5);
         rightArr.push(bars[i].style.height);
     }
 
@@ -241,6 +282,8 @@ async function merge(bars, start, mid, end) {
             bars[k].style.height = rightArr[j];
             j++;
         }
+
+        playNote(200 + parseInt(bars[k].style.height) * 5, "square");
         await sleep(getDelay());
         bars[k].classList.remove('bar-swap');
         k++;
@@ -249,6 +292,7 @@ async function merge(bars, start, mid, end) {
     while (i < leftArr.length) {
         bars[k].classList.add('bar-swap');
         bars[k].style.height = leftArr[i];
+        playNote(200 + parseInt(bars[k].style.height) * 5, "square");
         await sleep(getDelay());
         bars[k].classList.remove('bar-swap');
         i++;
@@ -258,6 +302,7 @@ async function merge(bars, start, mid, end) {
     while (j < rightArr.length) {
         bars[k].classList.add('bar-swap');
         bars[k].style.height = rightArr[j];
+        playNote(200 + parseInt(bars[k].style.height) * 5, "square");
         await sleep(getDelay());
         bars[k].classList.remove('bar-swap');
         j++;
@@ -297,6 +342,7 @@ async function partition(bars, low, high) {
 
     for (let j = low; j < high; j++) {
         bars[j].classList.add('bar-compare');
+        playNote(200 + parseInt(bars[j].style.height) * 5);
         await sleep(getDelay());
 
         const currentHeight = parseInt(bars[j].style.height);
@@ -310,6 +356,7 @@ async function partition(bars, low, high) {
 
             bars[i].classList.add('bar-swap');
             bars[j].classList.add('bar-swap');
+            playNote(200 + parseInt(bars[i].style.height) * 5, "square");
             await sleep(getDelay());
             bars[i].classList.remove('bar-swap');
             bars[j].classList.remove('bar-swap');
