@@ -5,6 +5,33 @@ const arraySizeInput = document.getElementById("array-size");
 const speedInput = document.getElementById("speed");
 const soundToggle = document.getElementById("sound-toggle");
 const algorithmSelect = document.getElementById("algorithm-select");
+const comparisonCountParams = document.getElementById("comparison-count");
+const swapCountParams = document.getElementById("swap-count");
+
+// Stats Variables
+let comparisonCount = 0;
+let swapCount = 0;
+
+function updateStatsUI() {
+    comparisonCountParams.innerText = comparisonCount;
+    swapCountParams.innerText = swapCount;
+}
+
+function resetStats() {
+    comparisonCount = 0;
+    swapCount = 0;
+    updateStatsUI();
+}
+
+function incrementComparison() {
+    comparisonCount++;
+    updateStatsUI();
+}
+
+function incrementSwap() {
+    swapCount++;
+    updateStatsUI();
+}
 
 // Sound Context
 let audioCtx = null;
@@ -102,6 +129,7 @@ sortBtn.addEventListener("click", () => {
 const startSort = async () => {
     if (isSorting) return;
     toggleControls(true);
+    resetStats();
 
     const algo = algorithmSelect.value;
     const bars = document.getElementsByClassName("array-bar");
@@ -130,6 +158,7 @@ async function bubbleSort(bars) {
             const h1 = parseInt(bars[j].style.height);
             const h2 = parseInt(bars[j + 1].style.height);
 
+            incrementComparison();
             if (h1 > h2) {
                 bars[j].classList.replace('bar-compare', 'bar-swap');
                 bars[j + 1].classList.replace('bar-compare', 'bar-swap');
@@ -138,6 +167,7 @@ async function bubbleSort(bars) {
 
                 bars[j].style.height = `${h2}%`;
                 bars[j + 1].style.height = `${h1}%`;
+                incrementSwap();
                 await sleep(getDelay());
 
                 bars[j].classList.remove('bar-swap');
@@ -167,6 +197,7 @@ async function selectionSort(bars) {
             const h1 = parseInt(bars[j].style.height);
             const h2 = parseInt(bars[minIdx].style.height);
 
+            incrementComparison();
             if (h1 < h2) {
                 if (minIdx !== i) bars[minIdx].classList.remove('bar-swap');
                 minIdx = j;
@@ -182,6 +213,7 @@ async function selectionSort(bars) {
 
             bars[i].style.height = h2;
             bars[minIdx].style.height = h1;
+            incrementSwap();
             await sleep(getDelay());
 
             bars[minIdx].classList.remove('bar-swap');
@@ -213,11 +245,13 @@ async function insertionSort(bars) {
             const hPrev = parseInt(bars[j - 1].style.height);
             const hCurr = parseInt(bars[j].style.height);
 
+            incrementComparison();
             if (hPrev > hCurr) {
                 playNote(200 + hCurr * 5, "square");
                 // Swap visual
                 bars[j].style.height = bars[j - 1].style.height;
                 bars[j - 1].style.height = height; // technically we swap bubbling down
+                incrementSwap();
 
                 await sleep(getDelay());
 
@@ -275,6 +309,7 @@ async function merge(bars, start, mid, end) {
 
         bars[k].classList.add('bar-swap');
 
+        incrementComparison();
         if (h1 <= h2) {
             bars[k].style.height = leftArr[i];
             i++;
@@ -284,6 +319,7 @@ async function merge(bars, start, mid, end) {
         }
 
         playNote(200 + parseInt(bars[k].style.height) * 5, "square");
+        incrementSwap();
         await sleep(getDelay());
         bars[k].classList.remove('bar-swap');
         k++;
@@ -292,6 +328,7 @@ async function merge(bars, start, mid, end) {
     while (i < leftArr.length) {
         bars[k].classList.add('bar-swap');
         bars[k].style.height = leftArr[i];
+        incrementSwap(); // assignment
         playNote(200 + parseInt(bars[k].style.height) * 5, "square");
         await sleep(getDelay());
         bars[k].classList.remove('bar-swap');
@@ -302,6 +339,7 @@ async function merge(bars, start, mid, end) {
     while (j < rightArr.length) {
         bars[k].classList.add('bar-swap');
         bars[k].style.height = rightArr[j];
+        incrementSwap(); // assignment
         playNote(200 + parseInt(bars[k].style.height) * 5, "square");
         await sleep(getDelay());
         bars[k].classList.remove('bar-swap');
@@ -347,12 +385,15 @@ async function partition(bars, low, high) {
 
         const currentHeight = parseInt(bars[j].style.height);
 
+        incrementComparison();
         if (currentHeight < pivot) {
             i++;
             // swap i and j
             const temp = bars[i].style.height;
             bars[i].style.height = bars[j].style.height;
             bars[j].style.height = temp;
+
+            incrementSwap();
 
             bars[i].classList.add('bar-swap');
             bars[j].classList.add('bar-swap');
@@ -368,6 +409,7 @@ async function partition(bars, low, high) {
     const temp = bars[i + 1].style.height;
     bars[i + 1].style.height = bars[high].style.height;
     bars[high].style.height = temp;
+    incrementSwap();
 
     bars[high].classList.remove('bar-compare');
 
