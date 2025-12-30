@@ -151,6 +151,11 @@ const startSort = async () => {
     else if (algo === "gnome") await gnomeSort(bars);
     else if (algo === "cycle") await cycleSort(bars);
     else if (algo === "pancake") await pancakeSort(bars);
+    else if (algo === "bitonic") await bitonicSort(bars);
+    else if (algo === "radix") await radixSort(bars);
+    else if (algo === "oddeven") await oddEvenSort(bars);
+    else if (algo === "quick3") await quickSort3Way(bars);
+    else if (algo === "stooge") await stoogeSort(bars);
 
     toggleControls(false);
 };
@@ -887,3 +892,292 @@ async function flip(bars, k) {
 
 // Initialize
 generateArray();
+
+// Bitonic Sort Implementation
+async function bitonicSort(bars) {
+    const len = bars.length;
+    // Bitonic sort works best with powers of 2, but we can try to adapt or just sort up to nearest power of 2?
+    // Or we can just pad comparison logic.
+    // Standard iterative bitonic sort.
+
+    // Note: This specific implementation assumes length is power of 2 for perfect bitonic sorting.
+    // However, visualizing it generally might be tricky if size is not 2^k.
+    // We will attempt a general version or just simple version.
+
+    // Let's implement the recursive structure iteratively for visualization.
+
+    for (let k = 2; k <= len; k *= 2) { // k is window size
+        for (let j = k / 2; j > 0; j = Math.floor(j / 2)) {
+            for (let i = 0; i < len; i++) {
+                let l = i ^ j;
+                if (l > i && l < len) {
+                    // direction determination
+                    let ascending = (i & k) === 0;
+
+                    bars[i].classList.add('bar-compare');
+                    bars[l].classList.add('bar-compare');
+                    playNote(200 + parseInt(bars[i].style.height) * 5);
+                    await sleep(getDelay());
+                    incrementComparison();
+
+                    const h1 = parseInt(bars[i].style.height);
+                    const h2 = parseInt(bars[l].style.height);
+
+                    if ((ascending && h1 > h2) || (!ascending && h1 < h2)) {
+                        bars[i].classList.replace('bar-compare', 'bar-swap');
+                        bars[l].classList.replace('bar-compare', 'bar-swap');
+                        playNote(200 + h2 * 5, "square");
+
+                        bars[i].style.height = `${h2}%`;
+                        bars[l].style.height = `${h1}%`;
+                        incrementSwap();
+                        await sleep(getDelay());
+
+                        bars[i].classList.remove('bar-swap');
+                        bars[l].classList.remove('bar-swap');
+                    } else {
+                        bars[i].classList.remove('bar-compare');
+                        bars[l].classList.remove('bar-compare');
+                    }
+                }
+            }
+        }
+    }
+    // Clean up
+    for (let i = 0; i < len; i++) bars[i].classList.remove('bar-compare');
+    for (let i = 0; i < len; i++) bars[i].classList.add('bar-sorted');
+}
+
+// Radix Sort Implementation (LSD)
+async function radixSort(bars) {
+    // Finding max to know digit count
+    let maxVal = 0;
+    for (let i = 0; i < bars.length; i++) {
+        bars[i].classList.add('bar-compare');
+        maxVal = Math.max(maxVal, parseInt(bars[i].style.height));
+    }
+    await sleep(getDelay());
+    for (let i = 0; i < bars.length; i++) bars[i].classList.remove('bar-compare');
+
+    // Do counting sort for every digit. Exp is 1, 10, 100...
+    for (let exp = 1; Math.floor(maxVal / exp) > 0; exp *= 10) {
+        await countSort(bars, exp);
+    }
+    for (let i = 0; i < bars.length; i++) bars[i].classList.add('bar-sorted');
+}
+
+async function countSort(bars, exp) {
+    let output = new Array(bars.length).fill(0);
+    let count = new Array(10).fill(0);
+    const len = bars.length;
+
+    // Store count of occurrences
+    for (let i = 0; i < len; i++) {
+        bars[i].classList.add('bar-compare');
+        playNote(200 + parseInt(bars[i].style.height) * 5);
+        let val = parseInt(bars[i].style.height);
+        count[Math.floor(val / exp) % 10]++;
+
+        // Visualize scanning
+        await sleep(getDelay() / 2);
+        bars[i].classList.remove('bar-compare');
+    }
+
+    // Change count[i] so that count[i] contains actual position of this digit in output[]
+    for (let i = 1; i < 10; i++) {
+        count[i] += count[i - 1];
+    }
+
+    // Build the output array - reverse order to keep stable
+    for (let i = len - 1; i >= 0; i--) {
+        let val = parseInt(bars[i].style.height);
+        output[count[Math.floor(val / exp) % 10] - 1] = val;
+        count[Math.floor(val / exp) % 10]--;
+    }
+
+    // Copy the output array to bars, so that bars now contains sorted numbers according to current digit
+    for (let i = 0; i < len; i++) {
+        bars[i].classList.add('bar-swap');
+        incrementSwap(); // It's an overwrite
+        bars[i].style.height = `${output[i]}%`;
+        playNote(200 + parseInt(bars[i].style.height) * 5, "square");
+        await sleep(getDelay());
+        bars[i].classList.remove('bar-swap');
+    }
+}
+
+
+// Odd-Even Sort Implementation
+async function oddEvenSort(bars) {
+    let sorted = false;
+    while (!sorted) {
+        sorted = true;
+        // Odd phase
+        for (let i = 1; i <= bars.length - 2; i += 2) {
+            bars[i].classList.add('bar-compare');
+            bars[i + 1].classList.add('bar-compare');
+            playNote(200 + parseInt(bars[i].style.height) * 5);
+            await sleep(getDelay());
+            incrementComparison();
+
+            if (parseInt(bars[i].style.height) > parseInt(bars[i + 1].style.height)) {
+                bars[i].classList.replace('bar-compare', 'bar-swap');
+                bars[i + 1].classList.replace('bar-compare', 'bar-swap');
+                playNote(200 + parseInt(bars[i + 1].style.height) * 5, "square");
+                await sleep(getDelay());
+
+                let temp = bars[i].style.height;
+                bars[i].style.height = bars[i + 1].style.height;
+                bars[i + 1].style.height = temp;
+                incrementSwap();
+                sorted = false;
+
+                await sleep(getDelay());
+                bars[i].classList.remove('bar-swap');
+                bars[i + 1].classList.remove('bar-swap');
+            } else {
+                bars[i].classList.remove('bar-compare');
+                bars[i + 1].classList.remove('bar-compare');
+            }
+        }
+
+        // Even phase
+        for (let i = 0; i <= bars.length - 2; i += 2) {
+            bars[i].classList.add('bar-compare');
+            bars[i + 1].classList.add('bar-compare');
+            playNote(200 + parseInt(bars[i].style.height) * 5);
+            await sleep(getDelay());
+            incrementComparison();
+
+            if (parseInt(bars[i].style.height) > parseInt(bars[i + 1].style.height)) {
+                bars[i].classList.replace('bar-compare', 'bar-swap');
+                bars[i + 1].classList.replace('bar-compare', 'bar-swap');
+                playNote(200 + parseInt(bars[i + 1].style.height) * 5, "square");
+                await sleep(getDelay());
+
+                let temp = bars[i].style.height;
+                bars[i].style.height = bars[i + 1].style.height;
+                bars[i + 1].style.height = temp;
+                incrementSwap();
+                sorted = false;
+
+                await sleep(getDelay());
+                bars[i].classList.remove('bar-swap');
+                bars[i + 1].classList.remove('bar-swap');
+            } else {
+                bars[i].classList.remove('bar-compare');
+                bars[i + 1].classList.remove('bar-compare');
+            }
+        }
+    }
+    for (let i = 0; i < bars.length; i++) bars[i].classList.add('bar-sorted');
+}
+
+// 3-Way Quick Sort Implementation
+async function quickSort3Way(bars) {
+    await quickSort3WayRecursive(bars, 0, bars.length - 1);
+    for (let i = 0; i < bars.length; i++) bars[i].classList.add('bar-sorted');
+}
+
+async function quickSort3WayRecursive(bars, low, high) {
+    if (low >= high) return;
+
+    let lt = low, gt = high;
+    let pivot = parseInt(bars[low].style.height);
+    bars[low].classList.add('bar-compare'); // pivot color
+
+    let i = low + 1;
+
+    while (i <= gt) {
+        bars[i].classList.add('bar-compare');
+        playNote(200 + parseInt(bars[i].style.height) * 5);
+        await sleep(getDelay());
+
+        let curr = parseInt(bars[i].style.height);
+        incrementComparison();
+
+        if (curr < pivot) {
+            bars[i].classList.replace('bar-compare', 'bar-swap');
+            bars[lt].classList.add('bar-swap');
+
+            let temp = bars[lt].style.height;
+            bars[lt].style.height = bars[i].style.height;
+            bars[i].style.height = temp;
+            playNote(200 + curr * 5, "square");
+            incrementSwap();
+            await sleep(getDelay());
+
+            bars[lt].classList.remove('bar-swap');
+            bars[i].classList.remove('bar-swap');
+            bars[i].classList.remove('bar-compare'); // handled
+            if (lt !== i) bars[lt].classList.remove('bar-compare'); // unmark old pivot/lt if moved
+
+            lt++;
+            i++;
+        } else if (curr > pivot) {
+            bars[i].classList.replace('bar-compare', 'bar-swap');
+            bars[gt].classList.add('bar-swap');
+
+            let temp = bars[i].style.height;
+            bars[i].style.height = bars[gt].style.height;
+            bars[gt].style.height = temp;
+            playNote(200 + curr * 5, "square");
+            incrementSwap();
+            await sleep(getDelay());
+
+            bars[gt].classList.remove('bar-swap');
+            bars[i].classList.remove('bar-swap');
+            // Do not increment i, examine swapped element
+            bars[gt].classList.remove('bar-compare');
+            gt--;
+        } else {
+            bars[i].classList.remove('bar-compare');
+            i++;
+        }
+    }
+
+    await quickSort3WayRecursive(bars, low, lt - 1);
+    await quickSort3WayRecursive(bars, gt + 1, high);
+}
+
+// Stooge Sort Implementation
+async function stoogeSort(bars) {
+    await stoogeSortRecursive(bars, 0, bars.length - 1);
+    for (let i = 0; i < bars.length; i++) bars[i].classList.add('bar-sorted');
+}
+
+async function stoogeSortRecursive(bars, l, h) {
+    if (l >= h) return;
+
+    bars[l].classList.add('bar-compare');
+    bars[h].classList.add('bar-compare');
+    playNote(200 + parseInt(bars[l].style.height) * 5);
+    await sleep(getDelay());
+    incrementComparison();
+
+    if (parseInt(bars[l].style.height) > parseInt(bars[h].style.height)) {
+        bars[l].classList.replace('bar-compare', 'bar-swap');
+        bars[h].classList.replace('bar-compare', 'bar-swap');
+        playNote(200 + parseInt(bars[h].style.height) * 5, "square");
+        await sleep(getDelay());
+
+        let temp = bars[l].style.height;
+        bars[l].style.height = bars[h].style.height;
+        bars[h].style.height = temp;
+        incrementSwap();
+
+        await sleep(getDelay());
+        bars[l].classList.remove('bar-swap');
+        bars[h].classList.remove('bar-swap');
+    } else {
+        bars[l].classList.remove('bar-compare');
+        bars[h].classList.remove('bar-compare');
+    }
+
+    if (h - l + 1 > 2) {
+        let t = Math.floor((h - l + 1) / 3);
+        await stoogeSortRecursive(bars, l, h - t);
+        await stoogeSortRecursive(bars, l + t, h);
+        await stoogeSortRecursive(bars, l, h - t);
+    }
+}
