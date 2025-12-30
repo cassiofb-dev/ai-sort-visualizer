@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SortVisual - Premium Sorting Algorithm Visualizer</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>SortVisual</h1>
+            <p>Premium Algorithm Visualization</p>
+        </header>
+
+        <div class="controls">
+            <div class="control-group">
+                <button id="generate-btn" class="btn primary">Generate New Array</button>
+            </div>
+
+            <div class="control-group">
+                <label for="algorithm-select">Algorithm</label>
+                <select id="algorithm-select">
+                    <option value="bubble">Bubble Sort</option>
+                    <option value="selection">Selection Sort</option>
+                    <option value="insertion">Insertion Sort</option>
+                    <option value="merge">Merge Sort</option>
+                    <option value="quick">Quick Sort</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="array-size">Array Size</label>
+                <input type="range" id="array-size" min="10" max="100" value="50">
+            </div>
+
+            <div class="control-group">
+                <label for="speed">Animation Speed</label>
+                <input type="range" id="speed" min="1" max="100" value="50">
+            </div>
+
+            <div class="control-group">
+                <button id="sort-btn" class="btn action">Sort!</button>
+            </div>
+        </div>
+
+        <div id="array-container" class="array-container">
+            <!-- Bars will be generated here -->
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>
