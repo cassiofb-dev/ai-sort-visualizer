@@ -146,6 +146,11 @@ const startSort = async () => {
     else if (algo === "quick") await quickSort(bars);
     else if (algo === "heap") await heapSort(bars);
     else if (algo === "shell") await shellSort(bars);
+    else if (algo === "cocktail") await cocktailShakerSort(bars);
+    else if (algo === "comb") await combSort(bars);
+    else if (algo === "gnome") await gnomeSort(bars);
+    else if (algo === "cycle") await cycleSort(bars);
+    else if (algo === "pancake") await pancakeSort(bars);
 
     toggleControls(false);
 };
@@ -563,6 +568,321 @@ async function shellSort(bars) {
 
     // Final verification color
     for (let i = 0; i < len; i++) bars[i].classList.add('bar-sorted');
+}
+
+// Cocktail Shaker Sort Implementation
+async function cocktailShakerSort(bars) {
+    let sorted = false;
+    let start = 0;
+    let end = bars.length - 1;
+
+    while (sorted === false) {
+        sorted = true;
+
+        // Forward pass
+        for (let i = start; i < end; i++) {
+            bars[i].classList.add('bar-compare');
+            bars[i + 1].classList.add('bar-compare');
+            playNote(200 + parseInt(bars[i].style.height) * 5);
+            await sleep(getDelay());
+
+            incrementComparison();
+            if (parseInt(bars[i].style.height) > parseInt(bars[i + 1].style.height)) {
+                // Swap
+                bars[i].classList.replace('bar-compare', 'bar-swap');
+                bars[i + 1].classList.replace('bar-compare', 'bar-swap');
+                playNote(200 + parseInt(bars[i + 1].style.height) * 5, "square");
+                await sleep(getDelay());
+
+                const temp = bars[i].style.height;
+                bars[i].style.height = bars[i + 1].style.height;
+                bars[i + 1].style.height = temp;
+                incrementSwap();
+
+                await sleep(getDelay());
+                bars[i].classList.remove('bar-swap');
+                bars[i + 1].classList.remove('bar-swap');
+
+                sorted = false;
+            } else {
+                bars[i].classList.remove('bar-compare');
+                bars[i + 1].classList.remove('bar-compare');
+            }
+        }
+        bars[end].classList.add('bar-sorted');
+        end--;
+
+        if (sorted) break;
+
+        sorted = true;
+
+        // Backward pass
+        for (let i = end - 1; i >= start; i--) {
+            bars[i].classList.add('bar-compare');
+            bars[i + 1].classList.add('bar-compare');
+            playNote(200 + parseInt(bars[i].style.height) * 5);
+            await sleep(getDelay());
+
+            incrementComparison();
+            if (parseInt(bars[i].style.height) > parseInt(bars[i + 1].style.height)) {
+                // Swap
+                bars[i].classList.replace('bar-compare', 'bar-swap');
+                bars[i + 1].classList.replace('bar-compare', 'bar-swap');
+                playNote(200 + parseInt(bars[i + 1].style.height) * 5, "square");
+                await sleep(getDelay());
+
+                const temp = bars[i].style.height;
+                bars[i].style.height = bars[i + 1].style.height;
+                bars[i + 1].style.height = temp;
+                incrementSwap();
+
+                await sleep(getDelay());
+                bars[i].classList.remove('bar-swap');
+                bars[i + 1].classList.remove('bar-swap');
+
+                sorted = false;
+            } else {
+                bars[i].classList.remove('bar-compare');
+                bars[i + 1].classList.remove('bar-compare');
+            }
+        }
+        bars[start].classList.add('bar-sorted');
+        start++;
+    }
+
+    // Mark remaining as sorted
+    for (let i = 0; i < bars.length; i++) bars[i].classList.add('bar-sorted');
+}
+
+// Comb Sort Implementation
+async function combSort(bars) {
+    let gap = bars.length;
+    let shrink = 1.3;
+    let sorted = false;
+
+    while (!sorted) {
+        gap = Math.floor(gap / shrink);
+        if (gap <= 1) {
+            gap = 1;
+            sorted = true;
+        }
+
+        for (let i = 0; i + gap < bars.length; i++) {
+            bars[i].classList.add('bar-compare');
+            bars[i + gap].classList.add('bar-compare');
+            playNote(200 + parseInt(bars[i].style.height) * 5);
+            await sleep(getDelay());
+
+            incrementComparison();
+            if (parseInt(bars[i].style.height) > parseInt(bars[i + gap].style.height)) {
+                bars[i].classList.replace('bar-compare', 'bar-swap');
+                bars[i + gap].classList.replace('bar-compare', 'bar-swap');
+                playNote(200 + parseInt(bars[i].style.height) * 5, "square");
+                await sleep(getDelay());
+
+                const temp = bars[i].style.height;
+                bars[i].style.height = bars[i + gap].style.height;
+                bars[i + gap].style.height = temp;
+                incrementSwap();
+                sorted = false;
+
+                await sleep(getDelay());
+                bars[i].classList.remove('bar-swap');
+                bars[i + gap].classList.remove('bar-swap');
+            } else {
+                bars[i].classList.remove('bar-compare');
+                bars[i + gap].classList.remove('bar-compare');
+            }
+        }
+    }
+    for (let i = 0; i < bars.length; i++) bars[i].classList.add('bar-sorted');
+}
+
+// Gnome Sort Implementation
+async function gnomeSort(bars) {
+    let index = 0;
+    while (index < bars.length) {
+        if (index === 0) index++;
+
+        bars[index].classList.add('bar-compare');
+        bars[index - 1].classList.add('bar-compare');
+        playNote(200 + parseInt(bars[index].style.height) * 5);
+        await sleep(getDelay());
+
+        const h1 = parseInt(bars[index].style.height);
+        const h2 = parseInt(bars[index - 1].style.height);
+
+        incrementComparison();
+        if (h1 >= h2) {
+            bars[index].classList.remove('bar-compare');
+            bars[index - 1].classList.remove('bar-compare');
+            index++;
+        } else {
+            bars[index].classList.replace('bar-compare', 'bar-swap');
+            bars[index - 1].classList.replace('bar-compare', 'bar-swap');
+            playNote(200 + parseInt(bars[index].style.height) * 5, "square");
+            await sleep(getDelay());
+
+            const temp = bars[index].style.height;
+            bars[index].style.height = bars[index - 1].style.height;
+            bars[index - 1].style.height = temp;
+            incrementSwap();
+
+            await sleep(getDelay());
+            bars[index].classList.remove('bar-swap');
+            bars[index - 1].classList.remove('bar-swap');
+
+            index--;
+        }
+    }
+    for (let i = 0; i < bars.length; i++) bars[i].classList.add('bar-sorted');
+}
+
+// Cycle Sort Implementation
+async function cycleSort(bars) {
+    // This is notoriously hard to visualize well in-place without overwriting logic getting complex
+    // But we can implement the standard algorithm and highlight moves.
+    const len = bars.length;
+
+    for (let cycleStart = 0; cycleStart <= len - 2; cycleStart++) {
+        let itemHeight = bars[cycleStart].style.height;
+        let itemVal = parseInt(itemHeight);
+
+        bars[cycleStart].classList.add('bar-compare'); // Item we are trying to place
+
+        let pos = cycleStart;
+        for (let i = cycleStart + 1; i < len; i++) {
+            // Visual scan
+            bars[i].classList.add('bar-compare');
+            playNote(200 + parseInt(bars[i].style.height) * 5);
+            await sleep(getDelay() / 2);
+
+            incrementComparison();
+            if (parseInt(bars[i].style.height) < itemVal) {
+                pos++;
+            }
+            bars[i].classList.remove('bar-compare');
+        }
+
+        if (pos === cycleStart) {
+            bars[cycleStart].classList.remove('bar-compare');
+            bars[cycleStart].classList.add('bar-sorted'); // It's in correct place
+            continue;
+        }
+
+        while (itemVal === parseInt(bars[pos].style.height)) {
+            pos++;
+        }
+
+        // Write
+        if (pos !== cycleStart) {
+            bars[pos].classList.add('bar-swap');
+            const tempHeight = bars[pos].style.height;
+            bars[pos].style.height = itemHeight;
+            incrementSwap(); // Write
+            playNote(200 + parseInt(bars[pos].style.height) * 5, "square");
+            await sleep(getDelay());
+            bars[pos].classList.remove('bar-swap');
+
+            itemHeight = tempHeight;
+            itemVal = parseInt(itemHeight);
+        }
+
+        while (pos !== cycleStart) {
+            pos = cycleStart;
+            // Find position again for new item
+            for (let i = cycleStart + 1; i < len; i++) {
+                incrementComparison();
+                // No visual scan here to speed up, or maybe add if desired
+                if (parseInt(bars[i].style.height) < itemVal) {
+                    pos++;
+                }
+            }
+
+            while (itemVal === parseInt(bars[pos].style.height)) {
+                pos++;
+            }
+
+            if (itemVal !== parseInt(bars[pos].style.height)) {
+                bars[pos].classList.add('bar-swap');
+                const tempHeight = bars[pos].style.height;
+                bars[pos].style.height = itemHeight;
+                incrementSwap();
+                playNote(200 + parseInt(bars[pos].style.height) * 5, "square");
+                await sleep(getDelay());
+                bars[pos].classList.remove('bar-swap');
+
+                itemHeight = tempHeight;
+                itemVal = parseInt(itemHeight);
+            }
+        }
+        bars[cycleStart].classList.remove('bar-compare');
+    }
+    for (let i = 0; i < bars.length; i++) bars[i].classList.add('bar-sorted');
+}
+
+// Pancake Sort Implementation
+async function pancakeSort(bars) {
+    for (let currSize = bars.length; currSize > 1; currSize--) {
+        // Find index of max element in arr[0..currSize-1]
+        let maxIdx = 0;
+
+        for (let i = 0; i < currSize; i++) {
+            bars[i].classList.add('bar-compare');
+            playNote(200 + parseInt(bars[i].style.height) * 5);
+            await sleep(getDelay() / 4);
+
+            incrementComparison();
+            if (parseInt(bars[i].style.height) > parseInt(bars[maxIdx].style.height)) {
+                bars[maxIdx].classList.remove('bar-swap'); // unmark old max
+                maxIdx = i;
+                bars[maxIdx].classList.add('bar-swap'); // mark new max
+            } else {
+                bars[i].classList.remove('bar-compare');
+            }
+        }
+
+        await sleep(getDelay());
+
+        if (maxIdx !== currSize - 1) {
+            // Flip 0 to maxIdx
+            if (maxIdx > 0) {
+                await flip(bars, maxIdx);
+            }
+            // Flip 0 to currSize-1
+            await flip(bars, currSize - 1);
+        }
+
+        // Clean up visual state for this pass
+        for (let k = 0; k < currSize; k++) {
+            bars[k].classList.remove('bar-compare');
+            bars[k].classList.remove('bar-swap');
+        }
+        bars[currSize - 1].classList.add('bar-sorted');
+    }
+    bars[0].classList.add('bar-sorted');
+}
+
+async function flip(bars, k) {
+    let left = 0;
+    while (left < k) {
+        bars[left].classList.add('bar-swap');
+        bars[k].classList.add('bar-swap');
+
+        const temp = bars[left].style.height;
+        bars[left].style.height = bars[k].style.height;
+        bars[k].style.height = temp;
+        playNote(200 + parseInt(bars[left].style.height) * 5, "square");
+        incrementSwap();
+
+        await sleep(getDelay());
+
+        bars[left].classList.remove('bar-swap');
+        bars[k].classList.remove('bar-swap');
+
+        left++;
+        k--;
+    }
 }
 
 // Initialize
