@@ -144,6 +144,8 @@ const startSort = async () => {
     else if (algo === "insertion") await insertionSort(bars);
     else if (algo === "merge") await mergeSort(bars);
     else if (algo === "quick") await quickSort(bars);
+    else if (algo === "heap") await heapSort(bars);
+    else if (algo === "shell") await shellSort(bars);
 
     toggleControls(false);
 };
@@ -419,6 +421,148 @@ async function partition(bars, low, high) {
     bars[high].classList.remove('bar-compare');
 
     return i + 1;
+}
+
+// Heap Sort Implementation
+async function heapSort(bars) {
+    const len = bars.length;
+
+    // Build max heap
+    for (let i = Math.floor(len / 2) - 1; i >= 0; i--) {
+        await heapify(bars, len, i);
+    }
+
+    // Extraction
+    for (let i = len - 1; i > 0; i--) {
+        // Swap root (max) with i
+        bars[0].classList.add('bar-swap');
+        bars[i].classList.add('bar-swap');
+        playNote(200 + parseInt(bars[0].style.height) * 5, "square");
+        await sleep(getDelay());
+
+        const temp = bars[0].style.height;
+        bars[0].style.height = bars[i].style.height;
+        bars[i].style.height = temp;
+        incrementSwap();
+
+        await sleep(getDelay());
+        bars[0].classList.remove('bar-swap');
+        bars[i].classList.remove('bar-swap');
+
+        bars[i].classList.add('bar-sorted'); // i is now sorted
+
+        // Heapify root
+        await heapify(bars, i, 0);
+    }
+    bars[0].classList.add('bar-sorted');
+}
+
+async function heapify(bars, n, i) {
+    let largest = i;
+    const l = 2 * i + 1;
+    const r = 2 * i + 2;
+
+    if (l < n) {
+        bars[l].classList.add('bar-compare');
+        bars[largest].classList.add('bar-compare');
+        incrementComparison();
+        playNote(200 + parseInt(bars[l].style.height) * 5);
+        await sleep(getDelay());
+        if (parseInt(bars[l].style.height) > parseInt(bars[largest].style.height)) {
+            largest = l;
+        }
+        bars[l].classList.remove('bar-compare');
+        bars[largest].classList.remove('bar-compare');
+    }
+
+    if (r < n) {
+        bars[r].classList.add('bar-compare');
+        bars[largest].classList.add('bar-compare');
+        incrementComparison();
+        playNote(200 + parseInt(bars[r].style.height) * 5);
+        await sleep(getDelay());
+        if (parseInt(bars[r].style.height) > parseInt(bars[largest].style.height)) {
+            largest = r;
+        }
+        bars[r].classList.remove('bar-compare');
+        bars[largest].classList.remove('bar-compare');
+    }
+
+    if (largest !== i) {
+        bars[i].classList.add('bar-swap');
+        bars[largest].classList.add('bar-swap');
+        playNote(200 + parseInt(bars[i].style.height) * 5, "square");
+        await sleep(getDelay());
+
+        const temp = bars[i].style.height;
+        bars[i].style.height = bars[largest].style.height;
+        bars[largest].style.height = temp;
+        incrementSwap();
+
+        await sleep(getDelay());
+        bars[i].classList.remove('bar-swap');
+        bars[largest].classList.remove('bar-swap');
+
+        await heapify(bars, n, largest);
+    }
+}
+
+// Shell Sort Implementation
+async function shellSort(bars) {
+    const len = bars.length;
+
+    // Start with a big gap, then reduce the gap
+    for (let gap = Math.floor(len / 2); gap > 0; gap = Math.floor(gap / 2)) {
+
+        // Do a gapped insertion sort
+        for (let i = gap; i < len; i++) {
+            let tempHeight = bars[i].style.height;
+            let tempVal = parseInt(tempHeight);
+
+            bars[i].classList.add('bar-compare');
+            playNote(200 + tempVal * 5);
+            await sleep(getDelay());
+
+            let j;
+            for (j = i; j >= gap; j -= gap) {
+                bars[j].classList.add('bar-compare');
+                bars[j - gap].classList.add('bar-compare');
+                incrementComparison();
+                playNote(200 + parseInt(bars[j - gap].style.height) * 5);
+                await sleep(getDelay());
+
+                const valPrev = parseInt(bars[j - gap].style.height);
+
+                if (valPrev > tempVal) {
+                    bars[j].style.height = bars[j - gap].style.height;
+                    // Use swap color for the move
+                    bars[j].classList.add('bar-swap');
+                    bars[j - gap].classList.add('bar-swap');
+                    incrementSwap(); // counting shift as swap for simplicity
+                    playNote(200 + valPrev * 5, "square");
+                    await sleep(getDelay());
+
+                    bars[j].classList.remove('bar-swap');
+                    bars[j - gap].classList.remove('bar-swap');
+                    bars[j].classList.remove('bar-compare');
+                    bars[j - gap].classList.remove('bar-compare');
+                } else {
+                    bars[j].classList.remove('bar-compare');
+                    bars[j - gap].classList.remove('bar-compare');
+                    break;
+                }
+            }
+            bars[i].classList.remove('bar-compare');
+
+            // Put temp (original a[i]) in its correct location
+            if (j !== i) {
+                bars[j].style.height = tempHeight;
+            }
+        }
+    }
+
+    // Final verification color
+    for (let i = 0; i < len; i++) bars[i].classList.add('bar-sorted');
 }
 
 // Initialize
