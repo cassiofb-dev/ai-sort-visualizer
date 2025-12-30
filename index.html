@@ -30,18 +30,6 @@
             <p class="subtitle">Premium Algorithm Visualization</p>
         </header>
 
-        <!-- Stats Display (Always Visible) -->
-        <div class="stats-bar">
-            <div class="stat-item">
-                <span class="stat-label">Comparisons</span>
-                <span id="comparison-count" class="stat-value">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Swaps</span>
-                <span id="swap-count" class="stat-value">0</span>
-            </div>
-        </div>
-
         <!-- Settings Side Menu (Hidden by default) -->
         <div class="settings-overlay" id="settings-overlay"></div>
         <div class="settings-panel" id="settings-panel">
@@ -57,9 +45,9 @@
             </div>
 
             <div class="control-group">
-                <label for="algorithm-select">Algorithm</label>
-                <select id="algorithm-select">
-                    <option value="bubble">Bubble Sort</option>
+                <label for="algorithm-select">Algorithms (Hold Ctrl/Cmd to select multiple)</label>
+                <select id="algorithm-select" multiple size="8">
+                    <option value="bubble" selected>Bubble Sort</option>
                     <option value="selection">Selection Sort</option>
                     <option value="insertion">Insertion Sort</option>
                     <option value="merge">Merge Sort</option>
@@ -77,6 +65,7 @@
                     <option value="quick3">3-Way Quick Sort</option>
                     <option value="stooge">Stooge Sort</option>
                 </select>
+                <p class="help-text">Select multiple to compare!</p>
             </div>
 
             <div class="control-group">
@@ -126,8 +115,8 @@
             </button>
         </div>
 
-        <div id="array-container" class="array-container">
-            <!-- Bars will be generated here -->
+        <div id="visualizer-grid" class="visualizer-grid">
+            <!-- Algorithm Frames will be generated here -->
         </div>
     </div>
     <footer>
