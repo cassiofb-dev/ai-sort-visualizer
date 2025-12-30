@@ -90,7 +90,8 @@ label {
     font-weight: 600;
 }
 
-select {
+select,
+input[type="number"] {
     background-color: var(--bg-color);
     color: var(--text-primary);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -102,7 +103,8 @@ select {
     transition: border-color 0.3s;
 }
 
-select:focus {
+select:focus,
+input[type="number"]:focus {
     border-color: var(--primary-color);
 }
 

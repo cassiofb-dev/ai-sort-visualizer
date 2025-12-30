@@ -88,7 +88,12 @@ const generateArray = () => {
 
     container.innerHTML = "";
     array = [];
-    const size = parseInt(arraySizeInput.value);
+    let size = parseInt(arraySizeInput.value);
+    // Validation
+    if (isNaN(size)) size = 50;
+    if (size < 5) size = 5;
+    if (size > 100) size = 100;
+    arraySizeInput.value = size; // Update UI if clamped
 
     // We want bars to fit in the container width
     // container width approx 1160px max padding included
