@@ -1181,3 +1181,31 @@ async function stoogeSortRecursive(bars, l, h) {
         await stoogeSortRecursive(bars, l, h - t);
     }
 }
+
+// --- Menu Toggle Logic ---
+{
+    const menuToggle = document.getElementById('menu-toggle');
+    const menuClose = document.getElementById('menu-close');
+    const settingsPanel = document.getElementById('settings-panel');
+    const settingsOverlay = document.getElementById('settings-overlay');
+
+    const openMenu = () => {
+        if (settingsPanel) settingsPanel.classList.add('active');
+        if (settingsOverlay) settingsOverlay.classList.add('active');
+    };
+
+    const closeMenu = () => {
+        if (settingsPanel) settingsPanel.classList.remove('active');
+        if (settingsOverlay) settingsOverlay.classList.remove('active');
+    };
+
+    if (menuToggle) menuToggle.addEventListener('click', openMenu);
+    if (menuClose) menuClose.addEventListener('click', closeMenu);
+    if (settingsOverlay) settingsOverlay.addEventListener('click', closeMenu);
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && settingsPanel && settingsPanel.classList.contains('active')) {
+            closeMenu();
+        }
+    });
+}
