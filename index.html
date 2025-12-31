@@ -87,12 +87,46 @@
                 <label for="sound-toggle">Sound Effects</label>
                 <div class="toggle-wrapper">
                     <input type="checkbox" id="sound-toggle" checked>
-                    <!-- Custom Toggle Styling can go here -->
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="rainbow-toggle">Rainbow Mode 🌈</label>
+                <div class="toggle-wrapper">
+                    <input type="checkbox" id="rainbow-toggle">
                 </div>
             </div>
 
             <div class="panel-footer">
                 <p>Created with Gemini 3 Pro (High)</p>
+            </div>
+        </div>
+
+        <!-- Leaderboard Modal -->
+        <div id="leaderboard-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Algorithm Race Results 🏁</h2>
+                    <button class="close-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="leaderboard-table-wrapper">
+                        <table id="leaderboard-table">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Algorithm</th>
+                                    <th>Time</th>
+                                    <th>Comparisons</th>
+                                    <th>Swaps</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Results will be injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -126,7 +160,8 @@
     </div>
     <footer>
         <p>AI Sort Visualizer &copy; 2025. Created with Gemini 3 Pro (High). <br> Prompt Engineer:
-            <strong>cassiofb-dev</strong></p>
+            <strong>cassiofb-dev</strong>
+        </p>
     </footer>
     <script src="script.js"></script>
 </body>

@@ -5,6 +5,14 @@ const arraySizeInput = document.getElementById("array-size");
 const speedInput = document.getElementById("speed");
 const soundToggle = document.getElementById("sound-toggle");
 const algorithmSelect = document.getElementById("algorithm-select");
+const rainbowToggle = document.getElementById("rainbow-toggle");
+
+// Leaderboard Elements
+const leaderboardModal = document.getElementById("leaderboard-modal");
+const leaderboardTableBody = document.querySelector("#leaderboard-table tbody");
+const closeModalBtn = document.querySelector(".close-modal");
+
+// Global State
 
 // Global State
 let activeVisualizers = [];
@@ -17,6 +25,8 @@ class SortVisualizer {
         this.algoName = algoName;
         this.comparisons = 0;
         this.swaps = 0;
+        this.startTime = 0;
+        this.endTime = 0;
         this.bars = [];
         this.containerInfo = this.createFrame();
     }
@@ -58,6 +68,16 @@ class SortVisualizer {
             // Let's make it responsive. flex-basis or just width.
             const width = Math.max(2, Math.floor(400 / size) - 1); // 400 is rough min-width of frame
             bar.style.width = `${width}px`;
+
+            // Rainbow Mode 🌈
+            if (rainbowToggle.checked) {
+                // Hue from 0 to 360 based on value (0-100)
+                // Normalize value to 0-360 range. Max value is approx 100.
+                const hue = Math.floor((value / 100) * 360);
+                bar.style.backgroundColor = `hsl(${hue}, 100%, 50%)`;
+            } else {
+                bar.style.backgroundColor = ''; // Reset to CSS default
+            }
 
             this.containerInfo.barContainer.appendChild(bar);
             this.bars.push(bar);
@@ -120,7 +140,7 @@ function playNote(freq, type = "sine") {
     osc.start();
 
     // Lower volume if multiple visualizers are running
-    const vol = activeVisualizers.length > 1 ? 0.05 : 0.1;
+    const vol = activeVisualizers.length > 1 ? 0.1 : 0.2; // Increased volume
 
     // Short beep
     gainNode.gain.setValueAtTime(vol, audioCtx.currentTime);
@@ -264,7 +284,11 @@ generateBtn.addEventListener("click", generateArray);
 arraySizeInput.addEventListener("input", generateArray);
 // When algorithm selection changes, we don't necessarily regenerate IMMEDIATELY if we want to keep data,
 // but for simplicity, let's regenerate to update the view.
+// When algorithm selection changes, we don't necessarily regenerate IMMEDIATELY if we want to keep data,
+// but for simplicity, we can regenerate to update the view.
 algorithmSelect.addEventListener("change", generateArray);
+rainbowToggle.addEventListener("change", generateArray); // Re-color on toggle
+
 sortBtn.addEventListener("click", () => {
     initAudio(); // Initialize audio context on user interaction
     startSort();
@@ -277,40 +301,90 @@ const startSort = async () => {
     toggleControls(true);
 
     // Create promises for all active visualizers
-    const promises = activeVisualizers.map(viz => {
+    const promises = activeVisualizers.map(async viz => {
         const algo = viz.algoId;
         const bars = viz.bars;
-        // Bind methods to the visualizer instance so we don't assume global 'this' or similar issues
         const context = viz;
 
-        if (algo === "bubble") return bubbleSort(bars, context);
-        else if (algo === "selection") return selectionSort(bars, context);
-        else if (algo === "insertion") return insertionSort(bars, context);
-        else if (algo === "merge") return mergeSort(bars, context);
-        else if (algo === "quick") return quickSort(bars, context);
-        else if (algo === "heap") return heapSort(bars, context);
-        else if (algo === "shell") return shellSort(bars, context);
-        else if (algo === "cocktail") return cocktailShakerSort(bars, context);
-        else if (algo === "comb") return combSort(bars, context);
-        else if (algo === "gnome") return gnomeSort(bars, context);
-        else if (algo === "cycle") return cycleSort(bars, context);
-        else if (algo === "pancake") return pancakeSort(bars, context);
-        else if (algo === "bitonic") return bitonicSort(bars, context);
-        else if (algo === "radix") return radixSort(bars, context);
-        else if (algo === "oddeven") return oddEvenSort(bars, context);
-        else if (algo === "quick3") return quickSort3Way(bars, context);
-        else if (algo === "stooge") return stoogeSort(bars, context);
-        else if (algo === "stalin") return stalinSort(bars, context);
-        else if (algo === "bogo") return bogoSort(bars, context);
-        else if (algo === "bozo") return bozoSort(bars, context);
-        else if (algo === "slow") return slowSort(bars, context);
-        else if (algo === "double_selection") return doubleSelectionSort(bars, context);
+        viz.startTime = performance.now();
+
+        if (algo === "bubble") await bubbleSort(bars, context);
+        else if (algo === "selection") await selectionSort(bars, context);
+        else if (algo === "insertion") await insertionSort(bars, context);
+        else if (algo === "merge") await mergeSort(bars, context);
+        else if (algo === "quick") await quickSort(bars, context);
+        else if (algo === "heap") await heapSort(bars, context);
+        else if (algo === "shell") await shellSort(bars, context);
+        else if (algo === "cocktail") await cocktailShakerSort(bars, context);
+        else if (algo === "comb") await combSort(bars, context);
+        else if (algo === "gnome") await gnomeSort(bars, context);
+        else if (algo === "cycle") await cycleSort(bars, context);
+        else if (algo === "pancake") await pancakeSort(bars, context);
+        else if (algo === "bitonic") await bitonicSort(bars, context);
+        else if (algo === "radix") await radixSort(bars, context);
+        else if (algo === "oddeven") await oddEvenSort(bars, context);
+        else if (algo === "quick3") await quickSort3Way(bars, context);
+        else if (algo === "stooge") await stoogeSort(bars, context);
+        else if (algo === "stalin") await stalinSort(bars, context);
+        else if (algo === "bogo") await bogoSort(bars, context);
+        else if (algo === "bozo") await bozoSort(bars, context);
+        else if (algo === "slow") await slowSort(bars, context);
+        else if (algo === "double_selection") await doubleSelectionSort(bars, context);
+
+        viz.endTime = performance.now();
     });
 
     await Promise.all(promises);
 
     toggleControls(false);
+    showLeaderboard();
 };
+
+function showLeaderboard() {
+    // Only show if more than one algorithm or if explicitly desired
+    // if (activeVisualizers.length < 2) return; 
+
+    // Sort by time (ascending)
+    const sortedResults = [...activeVisualizers].sort((a, b) => {
+        const timeA = a.endTime - a.startTime;
+        const timeB = b.endTime - b.startTime;
+        return timeA - timeB;
+    });
+
+    leaderboardTableBody.innerHTML = '';
+
+    sortedResults.forEach((viz, index) => {
+        const tr = document.createElement('tr');
+        const duration = (viz.endTime - viz.startTime).toFixed(2);
+
+        let rankClass = '';
+        if (index === 0) rankClass = 'rank-1';
+        if (index === 1) rankClass = 'rank-2';
+        if (index === 2) rankClass = 'rank-3';
+
+        tr.innerHTML = `
+            <td class="${rankClass}">#${index + 1}</td>
+            <td class="${rankClass}">${viz.algoName}</td>
+            <td>${duration}ms</td>
+            <td>${viz.comparisons}</td>
+            <td>${viz.swaps}</td>
+        `;
+        leaderboardTableBody.appendChild(tr);
+    });
+
+    leaderboardModal.classList.add('active');
+}
+
+closeModalBtn.addEventListener('click', () => {
+    leaderboardModal.classList.remove('active');
+});
+
+// Close on outside click
+leaderboardModal.addEventListener('click', (e) => {
+    if (e.target === leaderboardModal) {
+        leaderboardModal.classList.remove('active');
+    }
+});
 
 
 // Algorithm Placeholders
