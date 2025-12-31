@@ -118,15 +118,18 @@ header h1 {
 .visualizer-grid {
     flex: 1;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    grid-template-columns: 1fr;
+    grid-auto-rows: 400px;
     gap: 20px;
     overflow-y: auto;
     padding-bottom: 10px;
 }
 
-/* Single column on very small screens or if only 1 algo */
-.visualizer-grid.single-view {
-    grid-template-columns: 1fr;
+/* 2 columns on larger screens */
+@media (min-width: 900px) {
+    .visualizer-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 .visualizer-frame {
