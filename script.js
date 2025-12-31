@@ -18,6 +18,10 @@ const closeModalBtn = document.querySelector(".close-modal");
 let activeVisualizers = [];
 let isSorting = false;
 let currentBaseArray = []; // Stores the raw numbers so every algo gets the same data
+let currentDelay = 50; // Cached delay value
+let lastNoteTime = 0; // For sound throttling
+let animationFrameId = null; // For UI loop
+
 
 class SortVisualizer {
     constructor(algoId, algoName) {
@@ -90,12 +94,12 @@ class SortVisualizer {
 
     incrementComparison() {
         this.comparisons++;
-        this.updateStatsUI();
+        // UI update moved to requestAnimationFrame loop
     }
 
     incrementSwap() {
         this.swaps++;
-        this.updateStatsUI();
+        // UI update moved to requestAnimationFrame loop
     }
 
     updateStatsUI() {
@@ -139,6 +143,20 @@ function playNote(freq, type = "sine") {
 
     osc.start();
 
+    // Throttling: limit max notes per second to avoid audio glitches/overload
+    const now = performance.now();
+    const minInterval = currentDelay < 10 ? 40 : 10; // If very fast, throttle more agressively (max 25 notes/sec) 
+
+    // However, for pure musicality we might want to allow it, but for performance we throttle.
+    // Let's rely on the fact that await sleep() is called in the algo.
+    // But if delay is 0, we need to throttle sound or it will crash/stutter.
+    if (getDelay() === 0 && (now - lastNoteTime < 20)) {
+        // Skip audio if running at max speed and too frequent
+        osc.stop();
+        return;
+    }
+    lastNoteTime = now;
+
     // Lower volume if multiple visualizers are running
     const vol = activeVisualizers.length > 1 ? 0.1 : 0.2; // Increased volume
 
@@ -155,30 +173,53 @@ function playNote(freq, type = "sine") {
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Get speed delay based on slider (inverted so higher slider = faster)
-const getDelay = () => {
-    // 100 - speed. 100 -> 0ms, 1 -> 100ms. 
-    // Let's map it better: 
-    // Slider 1-100. 
-    // Speed 100 -> 5ms
-    // Speed 1 -> 500ms
+// Get speed delay based on slider (inverted so higher slider = faster)
+const updateDelay = () => {
     const val = parseInt(speedInput.value);
-    return Math.floor(500 - (val * 4.95));
+    // Exponential curve for better control at high speeds
+    // 1 -> 500ms
+    // 100 -> 0ms
+    // old linear: 500 - (val * 4.95)
+
+    // New logic: 
+    // val=100 => 0ms
+    // val=99 => ~5ms
+    // ...
+    // val=1 => 500ms
+
+    // Let's keep it simple for now, but cache it
+    currentDelay = Math.floor(500 - (val * 5));
+    if (currentDelay < 0) currentDelay = 0;
 };
+
+const getDelay = () => currentDelay;
+
+// Initial call
+updateDelay();
 
 // Swap Animation Helper
 async function swapBars(bar1, bar2) {
     // 1. Calculate distance
-    const rect1 = bar1.getBoundingClientRect();
-    const rect2 = bar2.getBoundingClientRect();
-    const distance = rect2.left - rect1.left;
+    // Optimization: Use offsetLeft which is faster than getBoundingClientRect
+    const distance = bar2.offsetLeft - bar1.offsetLeft;
 
     // 2. Animate Transform
     // We want bar1 to move to bar2, and bar2 to move to bar1
     bar1.style.transform = `translateX(${distance}px)`;
     bar2.style.transform = `translateX(${-distance}px)`;
 
-    // Wait for animation
-    await sleep(getDelay());
+    // Optimize: If super fast, skip the visual wait to speed up sorting significantly
+    if (getDelay() > 0) {
+        // Wait for animation
+        await sleep(getDelay());
+    } else {
+        // At max speed, small delay just to let browser render? 
+        // Or no delay at all? 
+        // If we want instant, we skip await. But let's keep a tiny throttle or else it freezes.
+        // Actually, if delay is 0, we can skip the animation transform wait, 
+        // but we still likely want to yield for a microtask to update UI rarely?
+        await sleep(0);
+    }
 
     // 3. Swap Heights (Actual Data Swap)
     const tempHeight = bar1.style.height;
@@ -279,9 +320,24 @@ const toggleControls = (disable) => {
     isSorting = disable;
 };
 
+// UI Loop for Stats
+const uiLoop = () => {
+    activeVisualizers.forEach(viz => {
+        // Only touch DOM if values changed (dirty check implies keeping track of last rendered value)
+        // But simply updating textContent is reasonably fast if done 60fps instead of 1000s of times/sec
+        viz.updateStatsUI();
+    });
+
+    if (isSorting) {
+        animationFrameId = requestAnimationFrame(uiLoop);
+    }
+};
+
+
 // Event Listeners
 generateBtn.addEventListener("click", generateArray);
 arraySizeInput.addEventListener("input", generateArray);
+speedInput.addEventListener("input", updateDelay); // Update delay immediately
 // When algorithm selection changes, we don't necessarily regenerate IMMEDIATELY if we want to keep data,
 // but for simplicity, let's regenerate to update the view.
 // When algorithm selection changes, we don't necessarily regenerate IMMEDIATELY if we want to keep data,
@@ -299,6 +355,9 @@ const startSort = async () => {
     if (activeVisualizers.length === 0) generateArray(); // ensure we have something
 
     toggleControls(true);
+
+    // Start UI loop
+    uiLoop();
 
     // Create promises for all active visualizers
     const promises = activeVisualizers.map(async viz => {
@@ -335,6 +394,10 @@ const startSort = async () => {
     });
 
     await Promise.all(promises);
+
+    cancelAnimationFrame(animationFrameId);
+    // Final UI update to ensure correct numbers
+    activeVisualizers.forEach(viz => viz.updateStatsUI());
 
     toggleControls(false);
     showLeaderboard();
