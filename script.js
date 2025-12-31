@@ -181,6 +181,32 @@ async function swapBars(bar1, bar2) {
     bar2.style.transition = originalTransition;
 }
 
+// Helpers for Bogo/Bozo Sort
+function isSorted(bars) {
+    for (let i = 0; i < bars.length - 1; i++) {
+        const h1 = parseInt(bars[i].style.height);
+        const h2 = parseInt(bars[i + 1].style.height);
+        if (h1 > h2) return false;
+    }
+    return true;
+}
+
+async function shuffle(bars, context) {
+    const len = bars.length;
+    for (let i = len - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+
+        bars[i].classList.add('bar-swap');
+        bars[j].classList.add('bar-swap');
+
+        await swapBars(bars[i], bars[j]);
+        context.incrementSwap();
+
+        bars[i].classList.remove('bar-swap');
+        bars[j].classList.remove('bar-swap');
+    }
+}
+
 // Generate random array
 // Generate random array data and populate visualizers
 const generateArray = () => {
@@ -274,6 +300,11 @@ const startSort = async () => {
         else if (algo === "oddeven") return oddEvenSort(bars, context);
         else if (algo === "quick3") return quickSort3Way(bars, context);
         else if (algo === "stooge") return stoogeSort(bars, context);
+        else if (algo === "stalin") return stalinSort(bars, context);
+        else if (algo === "bogo") return bogoSort(bars, context);
+        else if (algo === "bozo") return bozoSort(bars, context);
+        else if (algo === "slow") return slowSort(bars, context);
+        else if (algo === "double_selection") return doubleSelectionSort(bars, context);
     });
 
     await Promise.all(promises);
@@ -1267,6 +1298,186 @@ async function stoogeSortRecursive(bars, l, h, context) {
         await stoogeSortRecursive(bars, l, h - t, context);
         await stoogeSortRecursive(bars, l + t, h, context);
         await stoogeSortRecursive(bars, l, h - t, context);
+    }
+}
+
+// Stalin Sort Implementation
+async function stalinSort(bars, context) {
+    if (bars.length === 0) return;
+
+    // Initial verification scan
+    let maxVal = parseInt(bars[0].style.height);
+    bars[0].classList.add('bar-sorted');
+
+    // We need to handle dynamic removal, so we can't just iterate simply with a fixed index if we splice array
+    // However, the 'bars' array passed is a reference to the visualizer's validation array.
+    // BUT the visually reflected elements are children of container.
+    // The visualization logic often relies on the array being consistent with DOM.
+    // Let's iterate and remove from DOM and array.
+
+    let i = 1;
+    while (i < bars.length) {
+        bars[i].classList.add('bar-compare');
+        playNote(200 + parseInt(bars[i].style.height) * 5);
+        await sleep(getDelay());
+
+        const currentVal = parseInt(bars[i].style.height);
+
+        context.incrementComparison();
+        if (currentVal < maxVal) {
+            // ELIMINATE
+            playNote(100, "sawtooth"); // harsher sound for elimination
+            bars[i].style.backgroundColor = 'red';
+            await sleep(getDelay());
+
+            // Remove from DOM
+            bars[i].remove();
+            // Remove from array
+            bars.splice(i, 1);
+
+            // Do not increment i, as the next element slides into this index
+        } else {
+            maxVal = currentVal;
+            bars[i].classList.remove('bar-compare');
+            bars[i].classList.add('bar-sorted');
+            i++;
+        }
+    }
+}
+
+// Bogo Sort Implementation
+async function bogoSort(bars, context) {
+    while (!isSorted(bars)) {
+        await shuffle(bars, context);
+        // Visual check (brief pause to show we checked)
+        playNote(600, "sine");
+        await sleep(getDelay());
+    }
+    for (let i = 0; i < bars.length; i++) bars[i].classList.add('bar-sorted');
+}
+
+// Bozo Sort Implementation
+async function bozoSort(bars, context) {
+    while (!isSorted(bars)) {
+        // Pick two random indices
+        const len = bars.length;
+        const i = Math.floor(Math.random() * len);
+        const j = Math.floor(Math.random() * len);
+
+        bars[i].classList.add('bar-compare');
+        bars[j].classList.add('bar-compare');
+        playNote(200 + parseInt(bars[i].style.height) * 5);
+
+        await sleep(getDelay());
+
+        context.incrementSwap(); // Bozo swaps regardless? Or only if needed? 
+        // Standard Bozo swaps two random elements. Checking if they are in order is an optimization for "unintelligent" sorting?
+        // Actually Bozo just swaps two random and checks if sorted.
+
+        bars[i].classList.replace('bar-compare', 'bar-swap');
+        bars[j].classList.replace('bar-compare', 'bar-swap');
+        await swapBars(bars[i], bars[j]);
+
+        bars[i].classList.remove('bar-swap');
+        bars[j].classList.remove('bar-swap');
+    }
+    for (let i = 0; i < bars.length; i++) bars[i].classList.add('bar-sorted');
+}
+
+// Slow Sort Implementation
+async function slowSort(bars, context) {
+    await slowSortRecursive(bars, 0, bars.length - 1, context);
+    for (let i = 0; i < bars.length; i++) bars[i].classList.add('bar-sorted');
+}
+
+async function slowSortRecursive(bars, i, j, context) {
+    if (i >= j) return;
+
+    const m = Math.floor((i + j) / 2);
+
+    await slowSortRecursive(bars, i, m, context);
+    await slowSortRecursive(bars, m + 1, j, context);
+
+    bars[j].classList.add('bar-compare');
+    bars[m].classList.add('bar-compare');
+    playNote(200 + parseInt(bars[j].style.height) * 5);
+    await sleep(getDelay());
+
+    context.incrementComparison();
+    if (parseInt(bars[j].style.height) < parseInt(bars[m].style.height)) {
+        bars[j].classList.replace('bar-compare', 'bar-swap');
+        bars[m].classList.replace('bar-compare', 'bar-swap');
+        await swapBars(bars[j], bars[m]);
+        context.incrementSwap();
+        bars[j].classList.remove('bar-swap');
+        bars[m].classList.remove('bar-swap');
+    } else {
+        bars[j].classList.remove('bar-compare');
+        bars[m].classList.remove('bar-compare');
+    }
+
+    await slowSortRecursive(bars, i, j - 1, context);
+}
+
+// Double Selection Sort Implementation
+async function doubleSelectionSort(bars, context) {
+    let left = 0;
+    let right = bars.length - 1;
+
+    while (left <= right) {
+        let minIdx = left;
+        let maxIdx = right; // Start assuming, but we scan properly
+        // Actually better to initialize maxIdx = left or similar to avoid issues if right is smaller than everything
+        maxIdx = left;
+
+        // Find min and max
+        for (let i = left; i <= right; i++) {
+            bars[i].classList.add('bar-compare');
+            playNote(200 + parseInt(bars[i].style.height) * 5);
+            // Throttle internal loop delay for speed
+            await sleep(getDelay() / 2);
+            context.incrementComparison();
+
+            const val = parseInt(bars[i].style.height);
+            if (val < parseInt(bars[minIdx].style.height)) {
+                minIdx = i;
+            }
+            if (val > parseInt(bars[maxIdx].style.height)) {
+                maxIdx = i;
+            }
+            bars[i].classList.remove('bar-compare');
+        }
+
+        // Swap min to left
+        if (minIdx !== left) {
+            bars[left].classList.add('bar-swap');
+            bars[minIdx].classList.add('bar-swap');
+            await swapBars(bars[left], bars[minIdx]);
+            context.incrementSwap();
+            bars[left].classList.remove('bar-swap');
+            bars[minIdx].classList.remove('bar-swap');
+
+            // If max was at left, it has now moved to minIdx
+            if (maxIdx === left) {
+                maxIdx = minIdx;
+            }
+        }
+
+        // Swap max to right
+        if (maxIdx !== right) {
+            bars[right].classList.add('bar-swap');
+            bars[maxIdx].classList.add('bar-swap');
+            await swapBars(bars[right], bars[maxIdx]);
+            context.incrementSwap();
+            bars[right].classList.remove('bar-swap');
+            bars[maxIdx].classList.remove('bar-swap');
+        }
+
+        bars[left].classList.add('bar-sorted');
+        bars[right].classList.add('bar-sorted');
+
+        left++;
+        right--;
     }
 }
 
