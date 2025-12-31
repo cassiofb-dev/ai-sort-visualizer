@@ -145,6 +145,42 @@ const getDelay = () => {
     return Math.floor(500 - (val * 4.95));
 };
 
+// Swap Animation Helper
+async function swapBars(bar1, bar2) {
+    // 1. Calculate distance
+    const rect1 = bar1.getBoundingClientRect();
+    const rect2 = bar2.getBoundingClientRect();
+    const distance = rect2.left - rect1.left;
+
+    // 2. Animate Transform
+    // We want bar1 to move to bar2, and bar2 to move to bar1
+    bar1.style.transform = `translateX(${distance}px)`;
+    bar2.style.transform = `translateX(${-distance}px)`;
+
+    // Wait for animation
+    await sleep(getDelay());
+
+    // 3. Swap Heights (Actual Data Swap)
+    const tempHeight = bar1.style.height;
+    bar1.style.height = bar2.style.height;
+    bar2.style.height = tempHeight;
+
+    // 4. Reset Transform without animation
+    const originalTransition = bar1.style.transition;
+    bar1.style.transition = 'none';
+    bar2.style.transition = 'none';
+
+    bar1.style.transform = 'translateX(0)';
+    bar2.style.transform = 'translateX(0)';
+
+    // 5. Restore Transition (after a micro-tick/reflow)
+    // Force reflow
+    void bar1.offsetHeight;
+
+    bar1.style.transition = originalTransition;
+    bar2.style.transition = originalTransition;
+}
+
 // Generate random array
 // Generate random array data and populate visualizers
 const generateArray = () => {
@@ -265,12 +301,11 @@ async function bubbleSort(bars, context) {
                 bars[j].classList.replace('bar-compare', 'bar-swap');
                 bars[j + 1].classList.replace('bar-compare', 'bar-swap');
                 playNote(200 + h1 * 5, "square"); // Swap sound
-                await sleep(getDelay());
 
-                bars[j].style.height = `${h2}%`;
-                bars[j + 1].style.height = `${h1}%`;
+                // Animate swap
+                await swapBars(bars[j], bars[j + 1]);
+
                 context.incrementSwap();
-                await sleep(getDelay());
 
                 bars[j].classList.remove('bar-swap');
                 bars[j + 1].classList.remove('bar-swap');
@@ -310,15 +345,14 @@ async function selectionSort(bars, context) {
         }
 
         if (minIdx !== i) {
-            const h1 = bars[i].style.height;
-            const h2 = bars[minIdx].style.height;
+            bars[i].classList.add('bar-swap'); // Color source
 
-            bars[i].style.height = h2;
-            bars[minIdx].style.height = h1;
+            await swapBars(bars[i], bars[minIdx]);
+
             context.incrementSwap();
-            await sleep(getDelay());
 
             bars[minIdx].classList.remove('bar-swap');
+            bars[i].classList.remove('bar-swap'); // Color source removal
             playNote(200 + parseInt(bars[i].style.height) * 5, "square");
             bars[minIdx].classList.remove('bar-compare');
         }
@@ -350,12 +384,17 @@ async function insertionSort(bars, context) {
             context.incrementComparison();
             if (hPrev > hCurr) {
                 playNote(200 + hCurr * 5, "square");
+
                 // Swap visual
-                bars[j].style.height = bars[j - 1].style.height;
-                bars[j - 1].style.height = height; // technically we swap bubbling down
+                bars[j].classList.add('bar-swap');
+                bars[j - 1].classList.add('bar-swap');
+
+                await swapBars(bars[j], bars[j - 1]);
+
                 context.incrementSwap();
 
-                await sleep(getDelay());
+                bars[j].classList.remove('bar-swap');
+                bars[j - 1].classList.remove('bar-swap');
 
                 bars[j].classList.remove('bar-compare');
                 bars[j - 1].classList.remove('bar-compare');
@@ -491,16 +530,13 @@ async function partition(bars, low, high, context) {
         if (currentHeight < pivot) {
             i++;
             // swap i and j
-            const temp = bars[i].style.height;
-            bars[i].style.height = bars[j].style.height;
-            bars[j].style.height = temp;
+            bars[i].classList.add('bar-swap');
+            bars[j].classList.add('bar-swap');
+
+            await swapBars(bars[i], bars[j]);
 
             context.incrementSwap();
 
-            bars[i].classList.add('bar-swap');
-            bars[j].classList.add('bar-swap');
-            playNote(200 + parseInt(bars[i].style.height) * 5, "square");
-            await sleep(getDelay());
             bars[i].classList.remove('bar-swap');
             bars[j].classList.remove('bar-swap');
         }
@@ -508,9 +544,7 @@ async function partition(bars, low, high, context) {
     }
 
     // Swap i+1 and pivot (high)
-    const temp = bars[i + 1].style.height;
-    bars[i + 1].style.height = bars[high].style.height;
-    bars[high].style.height = temp;
+    await swapBars(bars[i + 1], bars[high]);
     context.incrementSwap();
 
     bars[high].classList.remove('bar-compare');
@@ -533,14 +567,10 @@ async function heapSort(bars, context) {
         bars[0].classList.add('bar-swap');
         bars[i].classList.add('bar-swap');
         playNote(200 + parseInt(bars[0].style.height) * 5, "square");
-        await sleep(getDelay());
 
-        const temp = bars[0].style.height;
-        bars[0].style.height = bars[i].style.height;
-        bars[i].style.height = temp;
+        await swapBars(bars[0], bars[i]);
         context.incrementSwap();
 
-        await sleep(getDelay());
         bars[0].classList.remove('bar-swap');
         bars[i].classList.remove('bar-swap');
 
@@ -587,14 +617,10 @@ async function heapify(bars, n, i, context) {
         bars[i].classList.add('bar-swap');
         bars[largest].classList.add('bar-swap');
         playNote(200 + parseInt(bars[i].style.height) * 5, "square");
-        await sleep(getDelay());
 
-        const temp = bars[i].style.height;
-        bars[i].style.height = bars[largest].style.height;
-        bars[largest].style.height = temp;
+        await swapBars(bars[i], bars[largest]);
         context.incrementSwap();
 
-        await sleep(getDelay());
         bars[i].classList.remove('bar-swap');
         bars[largest].classList.remove('bar-swap');
 
@@ -620,22 +646,24 @@ async function shellSort(bars, context) {
 
             let j;
             for (j = i; j >= gap; j -= gap) {
+                // Compare bars[j] and bars[j-gap]
                 bars[j].classList.add('bar-compare');
                 bars[j - gap].classList.add('bar-compare');
                 context.incrementComparison();
                 playNote(200 + parseInt(bars[j - gap].style.height) * 5);
                 await sleep(getDelay());
 
+                const valCurr = parseInt(bars[j].style.height);
                 const valPrev = parseInt(bars[j - gap].style.height);
 
-                if (valPrev > tempVal) {
-                    bars[j].style.height = bars[j - gap].style.height;
-                    // Use swap color for the move
+                if (valPrev > valCurr) {
+                    // Swap
                     bars[j].classList.add('bar-swap');
                     bars[j - gap].classList.add('bar-swap');
-                    context.incrementSwap(); // counting shift as swap for simplicity
                     playNote(200 + valPrev * 5, "square");
-                    await sleep(getDelay());
+
+                    await swapBars(bars[j], bars[j - gap]);
+                    context.incrementSwap();
 
                     bars[j].classList.remove('bar-swap');
                     bars[j - gap].classList.remove('bar-swap');
@@ -648,11 +676,7 @@ async function shellSort(bars, context) {
                 }
             }
             bars[i].classList.remove('bar-compare');
-
-            // Put temp (original a[i]) in its correct location
-            if (j !== i) {
-                bars[j].style.height = tempHeight;
-            }
+            // No final placement needed as we swapped all the way down
         }
     }
 
@@ -682,14 +706,11 @@ async function cocktailShakerSort(bars, context) {
                 bars[i].classList.replace('bar-compare', 'bar-swap');
                 bars[i + 1].classList.replace('bar-compare', 'bar-swap');
                 playNote(200 + parseInt(bars[i + 1].style.height) * 5, "square");
-                await sleep(getDelay());
 
-                const temp = bars[i].style.height;
-                bars[i].style.height = bars[i + 1].style.height;
-                bars[i + 1].style.height = temp;
+                await swapBars(bars[i], bars[i + 1]);
+
                 context.incrementSwap();
 
-                await sleep(getDelay());
                 bars[i].classList.remove('bar-swap');
                 bars[i + 1].classList.remove('bar-swap');
 
@@ -719,14 +740,11 @@ async function cocktailShakerSort(bars, context) {
                 bars[i].classList.replace('bar-compare', 'bar-swap');
                 bars[i + 1].classList.replace('bar-compare', 'bar-swap');
                 playNote(200 + parseInt(bars[i + 1].style.height) * 5, "square");
-                await sleep(getDelay());
 
-                const temp = bars[i].style.height;
-                bars[i].style.height = bars[i + 1].style.height;
-                bars[i + 1].style.height = temp;
+                await swapBars(bars[i], bars[i + 1]);
+
                 context.incrementSwap();
 
-                await sleep(getDelay());
                 bars[i].classList.remove('bar-swap');
                 bars[i + 1].classList.remove('bar-swap');
 
@@ -768,15 +786,12 @@ async function combSort(bars, context) {
                 bars[i].classList.replace('bar-compare', 'bar-swap');
                 bars[i + gap].classList.replace('bar-compare', 'bar-swap');
                 playNote(200 + parseInt(bars[i].style.height) * 5, "square");
-                await sleep(getDelay());
 
-                const temp = bars[i].style.height;
-                bars[i].style.height = bars[i + gap].style.height;
-                bars[i + gap].style.height = temp;
+                await swapBars(bars[i], bars[i + gap]);
+
                 context.incrementSwap();
                 sorted = false;
 
-                await sleep(getDelay());
                 bars[i].classList.remove('bar-swap');
                 bars[i + gap].classList.remove('bar-swap');
             } else {
@@ -811,14 +826,11 @@ async function gnomeSort(bars, context) {
             bars[index].classList.replace('bar-compare', 'bar-swap');
             bars[index - 1].classList.replace('bar-compare', 'bar-swap');
             playNote(200 + parseInt(bars[index].style.height) * 5, "square");
-            await sleep(getDelay());
 
-            const temp = bars[index].style.height;
-            bars[index].style.height = bars[index - 1].style.height;
-            bars[index - 1].style.height = temp;
+            await swapBars(bars[index], bars[index - 1]);
+
             context.incrementSwap();
 
-            await sleep(getDelay());
             bars[index].classList.remove('bar-swap');
             bars[index - 1].classList.remove('bar-swap');
 
@@ -865,16 +877,21 @@ async function cycleSort(bars, context) {
         }
 
         // Write
+        // Write
         if (pos !== cycleStart) {
             bars[pos].classList.add('bar-swap');
-            const tempHeight = bars[pos].style.height;
-            bars[pos].style.height = itemHeight;
+            bars[cycleStart].classList.add('bar-swap'); // Visually using cycleStart as source
+
+            // Swap cycleStart (which holds itemHeight) with pos
+            await swapBars(bars[cycleStart], bars[pos]);
+
             context.incrementSwap(); // Write
             playNote(200 + parseInt(bars[pos].style.height) * 5, "square");
-            await sleep(getDelay());
-            bars[pos].classList.remove('bar-swap');
 
-            itemHeight = tempHeight;
+            bars[pos].classList.remove('bar-swap');
+            bars[cycleStart].classList.remove('bar-swap');
+
+            itemHeight = bars[cycleStart].style.height;
             itemVal = parseInt(itemHeight);
         }
 
@@ -895,14 +912,17 @@ async function cycleSort(bars, context) {
 
             if (itemVal !== parseInt(bars[pos].style.height)) {
                 bars[pos].classList.add('bar-swap');
-                const tempHeight = bars[pos].style.height;
-                bars[pos].style.height = itemHeight;
+                bars[cycleStart].classList.add('bar-swap');
+
+                await swapBars(bars[cycleStart], bars[pos]);
+
                 context.incrementSwap();
                 playNote(200 + parseInt(bars[pos].style.height) * 5, "square");
-                await sleep(getDelay());
-                bars[pos].classList.remove('bar-swap');
 
-                itemHeight = tempHeight;
+                bars[pos].classList.remove('bar-swap');
+                bars[cycleStart].classList.remove('bar-swap');
+
+                itemHeight = bars[cycleStart].style.height;
                 itemVal = parseInt(itemHeight);
             }
         }
@@ -959,13 +979,10 @@ async function flip(bars, k, context) {
         bars[left].classList.add('bar-swap');
         bars[k].classList.add('bar-swap');
 
-        const temp = bars[left].style.height;
-        bars[left].style.height = bars[k].style.height;
-        bars[k].style.height = temp;
+        await swapBars(bars[left], bars[k]);
+
         playNote(200 + parseInt(bars[left].style.height) * 5, "square");
         context.incrementSwap();
-
-        await sleep(getDelay());
 
         bars[left].classList.remove('bar-swap');
         bars[k].classList.remove('bar-swap');
@@ -1013,10 +1030,9 @@ async function bitonicSort(bars, context) {
                         bars[l].classList.replace('bar-compare', 'bar-swap');
                         playNote(200 + h2 * 5, "square");
 
-                        bars[i].style.height = `${h2}%`;
-                        bars[l].style.height = `${h1}%`;
+                        await swapBars(bars[i], bars[l]);
+
                         context.incrementSwap();
-                        await sleep(getDelay());
 
                         bars[i].classList.remove('bar-swap');
                         bars[l].classList.remove('bar-swap');
@@ -1109,15 +1125,12 @@ async function oddEvenSort(bars, context) {
                 bars[i].classList.replace('bar-compare', 'bar-swap');
                 bars[i + 1].classList.replace('bar-compare', 'bar-swap');
                 playNote(200 + parseInt(bars[i + 1].style.height) * 5, "square");
-                await sleep(getDelay());
 
-                let temp = bars[i].style.height;
-                bars[i].style.height = bars[i + 1].style.height;
-                bars[i + 1].style.height = temp;
+                await swapBars(bars[i], bars[i + 1]);
+
                 context.incrementSwap();
                 sorted = false;
 
-                await sleep(getDelay());
                 bars[i].classList.remove('bar-swap');
                 bars[i + 1].classList.remove('bar-swap');
             } else {
@@ -1138,15 +1151,12 @@ async function oddEvenSort(bars, context) {
                 bars[i].classList.replace('bar-compare', 'bar-swap');
                 bars[i + 1].classList.replace('bar-compare', 'bar-swap');
                 playNote(200 + parseInt(bars[i + 1].style.height) * 5, "square");
-                await sleep(getDelay());
 
-                let temp = bars[i].style.height;
-                bars[i].style.height = bars[i + 1].style.height;
-                bars[i + 1].style.height = temp;
+                await swapBars(bars[i], bars[i + 1]);
+
                 context.incrementSwap();
                 sorted = false;
 
-                await sleep(getDelay());
                 bars[i].classList.remove('bar-swap');
                 bars[i + 1].classList.remove('bar-swap');
             } else {
@@ -1185,12 +1195,10 @@ async function quickSort3WayRecursive(bars, low, high, context) {
             bars[i].classList.replace('bar-compare', 'bar-swap');
             bars[lt].classList.add('bar-swap');
 
-            let temp = bars[lt].style.height;
-            bars[lt].style.height = bars[i].style.height;
-            bars[i].style.height = temp;
+            await swapBars(bars[lt], bars[i]);
+
             playNote(200 + curr * 5, "square");
             context.incrementSwap();
-            await sleep(getDelay());
 
             bars[lt].classList.remove('bar-swap');
             bars[i].classList.remove('bar-swap');
@@ -1203,12 +1211,10 @@ async function quickSort3WayRecursive(bars, low, high, context) {
             bars[i].classList.replace('bar-compare', 'bar-swap');
             bars[gt].classList.add('bar-swap');
 
-            let temp = bars[i].style.height;
-            bars[i].style.height = bars[gt].style.height;
-            bars[gt].style.height = temp;
+            await swapBars(bars[i], bars[gt]);
+
             playNote(200 + curr * 5, "square");
             context.incrementSwap();
-            await sleep(getDelay());
 
             bars[gt].classList.remove('bar-swap');
             bars[i].classList.remove('bar-swap');
@@ -1244,14 +1250,11 @@ async function stoogeSortRecursive(bars, l, h, context) {
         bars[l].classList.replace('bar-compare', 'bar-swap');
         bars[h].classList.replace('bar-compare', 'bar-swap');
         playNote(200 + parseInt(bars[h].style.height) * 5, "square");
-        await sleep(getDelay());
 
-        let temp = bars[l].style.height;
-        bars[l].style.height = bars[h].style.height;
-        bars[h].style.height = temp;
+        await swapBars(bars[l], bars[h]);
+
         context.incrementSwap();
 
-        await sleep(getDelay());
         bars[l].classList.remove('bar-swap');
         bars[h].classList.remove('bar-swap');
     } else {
