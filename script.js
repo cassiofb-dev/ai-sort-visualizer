@@ -1045,11 +1045,10 @@ async function cycleSort(bars, context) {
             continue;
         }
 
-        while (itemVal === parseInt(bars[pos].style.height)) {
+        while (pos < len && itemVal === parseInt(bars[pos].style.height)) {
             pos++;
         }
 
-        // Write
         // Write
         if (pos !== cycleStart) {
             bars[pos].classList.add('bar-swap');
@@ -1079,7 +1078,7 @@ async function cycleSort(bars, context) {
                 }
             }
 
-            while (itemVal === parseInt(bars[pos].style.height)) {
+            while (pos < len && itemVal === parseInt(bars[pos].style.height)) {
                 pos++;
             }
 
@@ -2014,14 +2013,22 @@ async function circleSortRecursive(bars, low, high, context) {
     }
 
     if (l === r) {
-        const h1 = parseInt(bars[l].style.height);
-        const h2 = parseInt(bars[l + 1].style.height);
-        if (l + 1 <= high && h1 > h2) {
-            // Handle the middle element in odd length
-            // actually circle sort compares l and r, then recurses.
-            // If n is odd, central element is compared with itself in loop? No l < r handles it.
-            // Special case for middle element with its neighbor?
-            // Standard algorithm: if l == r, comparison with l+1 happen in recursion.
+        if (l + 1 <= high) {
+            const h1 = parseInt(bars[l].style.height);
+            const h2 = parseInt(bars[l + 1].style.height);
+            context.incrementComparison();
+            if (h1 > h2) {
+                playNote(200 + h1 * 5, "square");
+                bars[l].classList.add('bar-swap');
+                bars[l + 1].classList.add('bar-swap');
+
+                await swapBars(bars[l], bars[l + 1]);
+                context.incrementSwap();
+                swapped = true;
+
+                bars[l].classList.remove('bar-swap');
+                bars[l + 1].classList.remove('bar-swap');
+            }
         }
     }
 
@@ -2096,16 +2103,7 @@ async function strandSort(bars, context) {
 
         // Move strand elements to the front of unsorted area
         let insertPos = sortedCount;
-        for (const idx of strandIndices) {
-            // Move bubble-style or direct insert?
-            // To preserve relative order of others, we should shift.
-            // Let's just swap consistently to bring it to insertPos.
-            // But 'idx' changes if we shift previous ones.
-            // This is complex in-place.
 
-            // Alternative: Recursive implementation using auxiliary array concepts but mapped to swaps?
-            // Too hard for a quick visualizer hack.
-        }
 
         // Let's try a simpler simulation:
         // We just move the strand elements to the 'sortedCount' position one by one
@@ -2191,6 +2189,11 @@ async function strandSort(bars, context) {
             let targetIdx = sortedCount + placedCount;
             while (currentIdx > targetIdx) {
                 await swapBars(bars[currentIdx], bars[currentIdx - 1]);
+
+                // Track visual state manually since swapBars doesn't swap classList
+                bars[currentIdx].classList.remove('bar-swap');
+                bars[currentIdx - 1].classList.add('bar-swap');
+
                 context.incrementSwap(); // counting swaps for movement
                 currentIdx--;
             }
