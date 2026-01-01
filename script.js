@@ -377,7 +377,7 @@ const startSort = async () => {
         else if (algo === "cocktail") await cocktailShakerSort(bars, context);
         else if (algo === "comb") await combSort(bars, context);
         else if (algo === "gnome") await gnomeSort(bars, context);
-        else if (algo === "cycle") await cycleSort(bars, context);
+
         else if (algo === "pancake") await pancakeSort(bars, context);
         else if (algo === "bitonic") await bitonicSort(bars, context);
         else if (algo === "radix") await radixSort(bars, context);
@@ -1013,95 +1013,7 @@ async function gnomeSort(bars, context) {
     for (let i = 0; i < bars.length; i++) bars[i].classList.add('bar-sorted');
 }
 
-// Cycle Sort Implementation
-async function cycleSort(bars, context) {
-    // This is notoriously hard to visualize well in-place without overwriting logic getting complex
-    // But we can implement the standard algorithm and highlight moves.
-    const len = bars.length;
 
-    for (let cycleStart = 0; cycleStart <= len - 2; cycleStart++) {
-        let itemHeight = bars[cycleStart].style.height;
-        let itemVal = parseInt(itemHeight);
-
-        bars[cycleStart].classList.add('bar-compare'); // Item we are trying to place
-
-        let pos = cycleStart;
-        for (let i = cycleStart + 1; i < len; i++) {
-            // Visual scan
-            bars[i].classList.add('bar-compare');
-            playNote(200 + parseInt(bars[i].style.height) * 5);
-            await sleep(getDelay() / 2);
-
-            context.incrementComparison();
-            if (parseInt(bars[i].style.height) < itemVal) {
-                pos++;
-            }
-            bars[i].classList.remove('bar-compare');
-        }
-
-        if (pos === cycleStart) {
-            bars[cycleStart].classList.remove('bar-compare');
-            bars[cycleStart].classList.add('bar-sorted'); // It's in correct place
-            continue;
-        }
-
-        while (pos < len && itemVal === parseInt(bars[pos].style.height)) {
-            pos++;
-        }
-
-        // Write
-        if (pos !== cycleStart) {
-            bars[pos].classList.add('bar-swap');
-            bars[cycleStart].classList.add('bar-swap'); // Visually using cycleStart as source
-
-            // Swap cycleStart (which holds itemHeight) with pos
-            await swapBars(bars[cycleStart], bars[pos]);
-
-            context.incrementSwap(); // Write
-            playNote(200 + parseInt(bars[pos].style.height) * 5, "square");
-
-            bars[pos].classList.remove('bar-swap');
-            bars[cycleStart].classList.remove('bar-swap');
-
-            itemHeight = bars[cycleStart].style.height;
-            itemVal = parseInt(itemHeight);
-        }
-
-        while (pos !== cycleStart) {
-            pos = cycleStart;
-            // Find position again for new item
-            for (let i = cycleStart + 1; i < len; i++) {
-                context.incrementComparison();
-                // No visual scan here to speed up, or maybe add if desired
-                if (parseInt(bars[i].style.height) < itemVal) {
-                    pos++;
-                }
-            }
-
-            while (pos < len && itemVal === parseInt(bars[pos].style.height)) {
-                pos++;
-            }
-
-            if (itemVal !== parseInt(bars[pos].style.height)) {
-                bars[pos].classList.add('bar-swap');
-                bars[cycleStart].classList.add('bar-swap');
-
-                await swapBars(bars[cycleStart], bars[pos]);
-
-                context.incrementSwap();
-                playNote(200 + parseInt(bars[pos].style.height) * 5, "square");
-
-                bars[pos].classList.remove('bar-swap');
-                bars[cycleStart].classList.remove('bar-swap');
-
-                itemHeight = bars[cycleStart].style.height;
-                itemVal = parseInt(itemHeight);
-            }
-        }
-        bars[cycleStart].classList.remove('bar-compare');
-    }
-    for (let i = 0; i < bars.length; i++) bars[i].classList.add('bar-sorted');
-}
 
 // Pancake Sort Implementation
 async function pancakeSort(bars, context) {
