@@ -389,6 +389,11 @@ const startSort = async () => {
         else if (algo === "bozo") await bozoSort(bars, context);
         else if (algo === "slow") await slowSort(bars, context);
         else if (algo === "double_selection") await doubleSelectionSort(bars, context);
+        else if (algo === "timsort") await timSort(bars, context);
+        else if (algo === "introsort") await introSort(bars, context);
+        else if (algo === "dual_pivot_quick") await dualPivotQuickSort(bars, context);
+        else if (algo === "circle") await circleSort(bars, context);
+        else if (algo === "strand") await strandSort(bars, context);
 
         viz.endTime = performance.now();
     });
@@ -1616,6 +1621,597 @@ async function doubleSelectionSort(bars, context) {
         left++;
         right--;
     }
+}
+
+
+// Timsort Implementation
+async function timSort(bars, context) {
+    const n = bars.length;
+    // For visualization, we use a smaller run size to show merging frequently
+    const RUN = 10;
+
+    // Sort individual subarrays of size RUN
+    for (let i = 0; i < n; i += RUN) {
+        await timInsertionSort(bars, i, Math.min((i + RUN - 1), (n - 1)), context);
+    }
+
+    // Merge runs
+    for (let size = RUN; size < n; size = 2 * size) {
+        for (let left = 0; left < n; left += 2 * size) {
+            const mid = left + size - 1;
+            const right = Math.min((left + 2 * size - 1), (n - 1));
+
+            if (mid < right) {
+                await timMerge(bars, left, mid, right, context);
+            }
+        }
+    }
+    // Final sorted color
+    for (let i = 0; i < n; i++) bars[i].classList.add('bar-sorted');
+}
+
+async function timInsertionSort(bars, left, right, context) {
+    for (let i = left + 1; i <= right; i++) {
+        let j = i;
+        bars[i].classList.add('bar-compare');
+        playNote(200 + parseInt(bars[i].style.height) * 5);
+        await sleep(getDelay());
+
+        while (j > left) {
+            bars[j].classList.add('bar-compare');
+            bars[j - 1].classList.add('bar-compare');
+
+            const h1 = parseInt(bars[j].style.height);
+            const h2 = parseInt(bars[j - 1].style.height);
+
+            context.incrementComparison();
+            if (h2 > h1) {
+                playNote(200 + h1 * 5, "square");
+                bars[j].classList.add('bar-swap');
+                bars[j - 1].classList.add('bar-swap');
+
+                await swapBars(bars[j], bars[j - 1]);
+                context.incrementSwap();
+
+                bars[j].classList.remove('bar-swap');
+                bars[j - 1].classList.remove('bar-swap');
+                j--;
+            } else {
+                bars[j].classList.remove('bar-compare');
+                bars[j - 1].classList.remove('bar-compare');
+                break;
+            }
+            bars[j].classList.remove('bar-compare');
+            bars[j + 1].classList.remove('bar-compare');
+        }
+        bars[i].classList.remove('bar-compare');
+    }
+}
+
+async function timMerge(bars, l, m, r, context) {
+    const len1 = m - l + 1;
+    const len2 = r - m;
+    const leftArr = [];
+    const rightArr = [];
+
+    for (let i = 0; i < len1; i++) {
+        leftArr.push(bars[l + i].style.height);
+        bars[l + i].classList.add('bar-compare');
+    }
+    for (let i = 0; i < len2; i++) {
+        rightArr.push(bars[m + 1 + i].style.height);
+        bars[m + 1 + i].classList.add('bar-compare');
+    }
+
+    await sleep(getDelay());
+
+    let i = 0;
+    let j = 0;
+    let k = l;
+
+    while (i < len1 && j < len2) {
+        const h1 = parseInt(leftArr[i]);
+        const h2 = parseInt(rightArr[j]);
+
+        bars[k].classList.add('bar-swap');
+        context.incrementComparison();
+
+        if (h1 <= h2) {
+            bars[k].style.height = leftArr[i];
+            i++;
+        } else {
+            bars[k].style.height = rightArr[j];
+            j++;
+        }
+        playNote(200 + parseInt(bars[k].style.height) * 5, "square");
+        context.incrementSwap(); // assignment
+        await sleep(getDelay());
+        bars[k].classList.remove('bar-swap');
+        k++;
+    }
+
+    while (i < len1) {
+        bars[k].classList.add('bar-swap');
+        bars[k].style.height = leftArr[i];
+        context.incrementSwap();
+        playNote(200 + parseInt(bars[k].style.height) * 5, "square");
+        await sleep(getDelay());
+        bars[k].classList.remove('bar-swap');
+        k++;
+        i++;
+    }
+
+    while (j < len2) {
+        bars[k].classList.add('bar-swap');
+        bars[k].style.height = rightArr[j];
+        context.incrementSwap();
+        playNote(200 + parseInt(bars[k].style.height) * 5, "square");
+        await sleep(getDelay());
+        bars[k].classList.remove('bar-swap');
+        k++;
+        j++;
+    }
+
+    // Cleanup
+    for (let x = l; x <= r; x++) bars[x].classList.remove('bar-compare');
+}
+
+// Introsort Implementation
+async function introSort(bars, context) {
+    const n = bars.length;
+    const maxDepth = Math.floor(Math.log2(n)) * 2;
+    await introSortUtil(bars, 0, n - 1, maxDepth, context);
+    // Final insertion sort pass to be sure
+    await insertionSort(bars, context);
+}
+
+async function introSortUtil(bars, begin, end, depthLimit, context) {
+    const size = end - begin;
+    if (size < 16) {
+        // Insertion sort is faster for small arrays
+        // We will do a full insertion sort at the end, or small ones here.
+        // Standard introsort does insertion sort here or leaves it for the end.
+        // Let's do nothing here and rely on the global insertion pass? 
+        // Or do insertion sort here.
+        await timInsertionSort(bars, begin, end, context);
+        return;
+    }
+
+    if (depthLimit === 0) {
+        // Heapsort on this partition
+        await heapSortRange(bars, begin, end, context);
+        return;
+    }
+
+    const pivotIdx = await partition(bars, begin, end, context);
+    await introSortUtil(bars, begin, pivotIdx - 1, depthLimit - 1, context);
+    await introSortUtil(bars, pivotIdx + 1, end, depthLimit - 1, context);
+}
+
+// Helper for Heapsort on a range
+async function heapSortRange(bars, start, end, context) {
+    const n = end - start + 1;
+
+    // Build max heap in the range
+    for (let i = Math.floor(n / 2) - 1; i >= 0; i--) {
+        await heapifyRange(bars, n, i, start, context);
+    }
+
+    // Extraction
+    for (let i = n - 1; i > 0; i--) {
+        // Swap root (start) with current last (start + i)
+        bars[start].classList.add('bar-swap');
+        bars[start + i].classList.add('bar-swap');
+        playNote(200 + parseInt(bars[start].style.height) * 5, "square");
+
+        await swapBars(bars[start], bars[start + i]);
+        context.incrementSwap();
+
+        bars[start].classList.remove('bar-swap');
+        bars[start + i].classList.remove('bar-swap');
+
+        // Heapify root
+        await heapifyRange(bars, i, 0, start, context);
+    }
+}
+
+async function heapifyRange(bars, n, i, offset, context) {
+    let largest = i;
+    const l = 2 * i + 1;
+    const r = 2 * i + 2;
+
+    const idxLargest = offset + largest;
+    const idxL = offset + l;
+    const idxR = offset + r;
+
+    if (l < n) {
+        bars[idxL].classList.add('bar-compare');
+        bars[idxLargest].classList.add('bar-compare');
+        context.incrementComparison();
+        playNote(200 + parseInt(bars[idxL].style.height) * 5);
+        await sleep(getDelay());
+
+        if (parseInt(bars[idxL].style.height) > parseInt(bars[idxLargest].style.height)) {
+            largest = l;
+        }
+        bars[idxL].classList.remove('bar-compare');
+        bars[idxLargest].classList.remove('bar-compare');
+    }
+
+    if (r < n) {
+        // Recalculate idxLargest because largest might have changed
+        const currentIdxLargest = offset + largest;
+        bars[idxR].classList.add('bar-compare');
+        bars[currentIdxLargest].classList.add('bar-compare');
+        context.incrementComparison();
+        await sleep(getDelay());
+
+        if (parseInt(bars[idxR].style.height) > parseInt(bars[currentIdxLargest].style.height)) {
+            largest = r;
+        }
+        bars[idxR].classList.remove('bar-compare');
+        bars[currentIdxLargest].classList.remove('bar-compare');
+    }
+
+    if (largest !== i) {
+        const idxI = offset + i;
+        const idxNewLargest = offset + largest;
+
+        bars[idxI].classList.add('bar-swap');
+        bars[idxNewLargest].classList.add('bar-swap');
+        playNote(200 + parseInt(bars[idxI].style.height) * 5, "square");
+
+        await swapBars(bars[idxI], bars[idxNewLargest]);
+        context.incrementSwap();
+
+        bars[idxI].classList.remove('bar-swap');
+        bars[idxNewLargest].classList.remove('bar-swap');
+
+        await heapifyRange(bars, n, largest, offset, context);
+    }
+}
+
+
+// Dual-Pivot QuickSort Implementation
+async function dualPivotQuickSort(bars, context) {
+    await dualPivotRecursive(bars, 0, bars.length - 1, context);
+    for (let i = 0; i < bars.length; i++) bars[i].classList.add('bar-sorted');
+}
+
+async function dualPivotRecursive(bars, low, high, context) {
+    if (low < high) {
+        // Swap low and high if low > high to ensure p1 <= p2
+        let hLow = parseInt(bars[low].style.height);
+        let hHigh = parseInt(bars[high].style.height);
+
+        context.incrementComparison();
+        if (hLow > hHigh) {
+            await swapBars(bars[low], bars[high]);
+            context.incrementSwap();
+        }
+
+        const p1 = parseInt(bars[low].style.height);
+        const p2 = parseInt(bars[high].style.height);
+
+        bars[low].classList.add('bar-compare'); // pivot 1
+        bars[high].classList.add('bar-compare'); // pivot 2
+
+        let i = low + 1;
+        let k = low + 1;
+        let j = high - 1;
+
+        while (k <= j) {
+            const val = parseInt(bars[k].style.height);
+            context.incrementComparison();
+
+            bars[k].classList.add('bar-compare');
+            playNote(200 + val * 5);
+            await sleep(getDelay());
+
+            if (val < p1) {
+                if (i !== k) {
+                    await swapBars(bars[i], bars[k]);
+                    context.incrementSwap();
+                }
+                i++;
+                k++;
+            } else if (val >= p2) { // optimization
+                while (parseInt(bars[j].style.height) > p2 && k < j) {
+                    j--;
+                    context.incrementComparison();
+                }
+
+                await swapBars(bars[k], bars[j]);
+                context.incrementSwap();
+                j--;
+
+                if (parseInt(bars[k].style.height) < p1) {
+                    await swapBars(bars[i], bars[k]);
+                    context.incrementSwap();
+                    i++;
+                }
+                k++; // Only increment k if we processed it. 
+                // Careful here with the logic logic. 
+                // The standard algo:
+                // if val < p1: swap(i, k), i++, k++
+                // else if val > p2: 
+                //    while val(j) > p2 && k < j: j--
+                //    swap(k, j), j--
+                //    if val(k) < p1: swap(i, k), i++
+                //    k++
+                // else: k++
+            } else {
+                k++;
+            }
+            bars[k - 1]?.classList.remove('bar-compare'); // Cleanup prev
+        }
+
+        // Move pivots to correct positions
+        i--;
+        j++;
+
+        await swapBars(bars[low], bars[i]);
+        await swapBars(bars[high], bars[j]);
+        context.incrementSwap();
+        context.incrementSwap();
+
+        bars[low].classList.remove('bar-compare');
+        bars[high].classList.remove('bar-compare');
+
+        // Recurse
+        await dualPivotRecursive(bars, low, i - 1, context);
+        await dualPivotRecursive(bars, i + 1, j - 1, context);
+        await dualPivotRecursive(bars, j + 1, high, context);
+    }
+}
+
+
+// Circle Sort Implementation
+async function circleSort(bars, context) {
+    let sorted = false;
+    while (!sorted) {
+        sorted = !(await circleSortRecursive(bars, 0, bars.length - 1, context));
+    }
+    for (let i = 0; i < bars.length; i++) bars[i].classList.add('bar-sorted');
+}
+
+async function circleSortRecursive(bars, low, high, context) {
+    let swapped = false;
+    if (low === high) return false;
+
+    let l = low;
+    let r = high;
+
+    while (l < r) {
+        const h1 = parseInt(bars[l].style.height);
+        const h2 = parseInt(bars[r].style.height);
+
+        bars[l].classList.add('bar-compare');
+        bars[r].classList.add('bar-compare');
+        playNote(200 + h1 * 5);
+        await sleep(getDelay());
+
+        context.incrementComparison();
+        if (h1 > h2) {
+            playNote(200 + h1 * 5, "square");
+
+            bars[l].classList.add('bar-swap');
+            bars[r].classList.add('bar-swap');
+
+            await swapBars(bars[l], bars[r]);
+            context.incrementSwap();
+            swapped = true;
+
+            bars[l].classList.remove('bar-swap');
+            bars[r].classList.remove('bar-swap');
+        }
+
+        bars[l].classList.remove('bar-compare');
+        bars[r].classList.remove('bar-compare');
+
+        l++;
+        r--;
+    }
+
+    if (l === r) {
+        const h1 = parseInt(bars[l].style.height);
+        const h2 = parseInt(bars[l + 1].style.height);
+        if (l + 1 <= high && h1 > h2) {
+            // Handle the middle element in odd length
+            // actually circle sort compares l and r, then recurses.
+            // If n is odd, central element is compared with itself in loop? No l < r handles it.
+            // Special case for middle element with its neighbor?
+            // Standard algorithm: if l == r, comparison with l+1 happen in recursion.
+        }
+    }
+
+    const mid = Math.floor((high - low) / 2);
+    const leftSwapped = await circleSortRecursive(bars, low, low + mid, context);
+    const rightSwapped = await circleSortRecursive(bars, low + mid + 1, high, context);
+
+    return swapped || leftSwapped || rightSwapped;
+}
+
+
+// Strand Sort Implementation
+// Simulation: Pull strands and merge them into a sorted area at the beginning.
+async function strandSort(bars, context) {
+    const n = bars.length;
+    // We will treat the left part of the array as the "result" list (sorted)
+    // and the right part as the "remaining" list.
+    // However, strand sort usually creates a NEW list. 
+    // We can simulate it by:
+    // 1. Identifying a strand in the unsorted part.
+    // 2. Moving that strand to a temporary buffer (visualizing it by coloring).
+    // 3. Merging that strad with the already sorted prefix.
+
+    // In-place variation:
+    // 1. 'sortedCount' tracks the size of the sorted prefix.
+    // 2. Scan unsorted part for a sorted subsequence (strand).
+    // 3. Move the elements of the strand to be adjacent to 'sortedCount'?
+    // That involves a lot of shifting.
+
+    // Simplified In-place visual approach:
+    // Iterate until all sorted.
+
+    // We interpret "strand sort" here loosely as "Selection sort but picking a sorted run instead of min".
+    // 1. Find a sorted subsequence from the unsorted portion.
+    // 2. Merge this subsequence into the sorted portion.
+
+    let sortedCount = 0;
+    while (sortedCount < n) {
+        // 1. Extract Strand
+        // The first element of unsorted part is always first in strand.
+        let strandIndices = [sortedCount];
+        let lastVal = parseInt(bars[sortedCount].style.height);
+
+        bars[sortedCount].classList.add('bar-compare'); // Mark as start of strand
+
+        for (let i = sortedCount + 1; i < n; i++) {
+            bars[i].classList.add('bar-compare');
+            playNote(200 + parseInt(bars[i].style.height) * 5);
+            await sleep(getDelay());
+
+            const currVal = parseInt(bars[i].style.height);
+            context.incrementComparison();
+
+            if (currVal >= lastVal) {
+                strandIndices.push(i);
+                lastVal = currVal;
+                bars[i].classList.add('bar-swap'); // Mark as part of strand
+            } else {
+                bars[i].classList.remove('bar-compare');
+            }
+        }
+
+        // Now 'strandIndices' contains indices of the strand.
+        // We need to bring these elements to the front (after sortedCount) and then merge them?
+        // Actually, Strand sort merges the strand into the result.
+        // Since the result is at the start (0 to sortedCount-1), we can merge the strand into it.
+        // But the strand is scattered. 
+
+        // Easier approach for visualization:
+        // Compact the strand to be contiguous after the sorted part.
+        // Then merge the two blocks [0..sortedCount-1] and [sortedCount..sortedCount+strandLen-1].
+
+        // Move strand elements to the front of unsorted area
+        let insertPos = sortedCount;
+        for (const idx of strandIndices) {
+            // Move bubble-style or direct insert?
+            // To preserve relative order of others, we should shift.
+            // Let's just swap consistently to bring it to insertPos.
+            // But 'idx' changes if we shift previous ones.
+            // This is complex in-place.
+
+            // Alternative: Recursive implementation using auxiliary array concepts but mapped to swaps?
+            // Too hard for a quick visualizer hack.
+        }
+
+        // Let's try a simpler simulation:
+        // We just move the strand elements to the 'sortedCount' position one by one
+        // effectively compacting them.
+
+        // To handle indices shifting, we process strandIndices carefully?
+        // Actually, let's just implement a robust way:
+        // We marked them with 'bar-swap'.
+        // We iterate through the array, if we find a marked one, we bubble it down to the correct position?
+        // No, that destroys the strand order if not careful.
+
+        // Let's take the strand elements out logically, shift everything else right, then put them back?
+        // Visualizer approach:
+        // 1. Identify strand.
+        // 2. Remove them (visually hide?) -> No.
+        // 3. Shift non-strand items to right.
+        // 4. Place strand items at [sortedCount...].
+        // 5. Merge [0...sortedCount-1] and [sortedCount...sortedCount+strandLen].
+
+        // Valid simplification:
+        // Just extract the strand and place it immediately after the sorted section?
+        // BUT the strand is ALREADY sorted.
+        // AND the sorted prefix is ALREADY sorted.
+        // So we just need to merge two sorted blocks.
+
+        // Step A: Compact the strand.
+        // We iterate through the array. If an element is part of the strand, we move it to the 'target' index.
+        // We need to use valid swaps to move it.
+
+        // We know the strand indices.
+        // Let's move them one by one to `sortedCount + k`.
+
+        let removedCount = 0;
+        // We must re-scan because indices shift if we do swaps.
+        // Actually, we can just bubble them to their target positions.
+
+        // Re-identification is safer for loop correctness.
+        // The strand is defined by the greedy increasing subsequence starting at sortedCount.
+
+        // Let's implement the extraction:
+        // Identify again
+        let strand = [];
+        let searchStart = sortedCount;
+        let p = searchStart;
+        if (p >= n) break; // done
+
+        let tailHeight = parseInt(bars[p].style.height);
+        strand.push({ idx: p, height: tailHeight });
+        bars[p].classList.add('bar-swap'); // Highlight strand
+
+        for (let i = p + 1; i < n; i++) {
+            let h = parseInt(bars[i].style.height);
+            if (h >= tailHeight) {
+                strand.push({ idx: i, height: h });
+                tailHeight = h;
+                bars[i].classList.add('bar-swap');
+            }
+        }
+
+        await sleep(getDelay());
+
+        // Compact them: move all strand checks to [sortedCount ... sortedCount + strand.length - 1]
+        // We can do this by shifting non-strand items.
+        // For every item in strand (from first to last), swap it towards the left until it hits the barrier (sortedCount + localIndex).
+
+        let placedCount = 0;
+        for (let k = 0; k < strand.length; k++) {
+            // Find where this element is NOW (it might have moved if we swapped things before it?)
+            // Actually, if we process from left to right, the later elements' indices are only affected if we swap something PAST them?
+            // No, we swap elements FROM the right TO the left.
+            // The item at strand[k].idx needs to move to sortedCount + k.
+
+            // To find it easily, let's just look for the class 'bar-swap' starting from sortedCount+placedCount.
+            let currentIdx = -1;
+            for (let scan = sortedCount + placedCount; scan < n; scan++) {
+                if (bars[scan].classList.contains('bar-swap')) {
+                    currentIdx = scan;
+                    break;
+                }
+            }
+
+            // Move bar at currentIdx to sortedCount + placedCount via swaps
+            let targetIdx = sortedCount + placedCount;
+            while (currentIdx > targetIdx) {
+                await swapBars(bars[currentIdx], bars[currentIdx - 1]);
+                context.incrementSwap(); // counting swaps for movement
+                currentIdx--;
+            }
+            placedCount++;
+        }
+
+        // Now the new strand is at [sortedCount, sortedCount + strand.length - 1].
+        // And it is sorted.
+        // And [0, sortedCount - 1] is sorted.
+        // Merge these two sorted blocks.
+
+        await timMerge(bars, 0, sortedCount - 1, sortedCount + strand.length - 1, context);
+
+        sortedCount += strand.length;
+
+        // Cleanup bar-swap classes for next round
+        for (let i = 0; i < n; i++) bars[i].classList.remove('bar-swap');
+    }
+
+    // Final verify
+    for (let i = 0; i < n; i++) bars[i].classList.add('bar-sorted');
 }
 
 // --- Menu Toggle Logic ---
