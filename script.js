@@ -394,6 +394,11 @@ const startSort = async () => {
         else if (algo === "dual_pivot_quick") await dualPivotQuickSort(bars, context);
         else if (algo === "circle") await circleSort(bars, context);
         else if (algo === "strand") await strandSort(bars, context);
+        else if (algo === "radix_msb") await radixSortMSB(bars, context);
+        else if (algo === "bucket") await bucketSort(bars, context);
+        else if (algo === "counting") await countingSort(bars, context);
+        else if (algo === "flash") await flashSort(bars, context);
+        else if (algo === "american_flag") await americanFlagSort(bars, context);
 
         viz.endTime = performance.now();
     });
@@ -2129,7 +2134,403 @@ async function strandSort(bars, context) {
     for (let i = 0; i < n; i++) bars[i].classList.add('bar-sorted');
 }
 
+
+// Radix Sort MSB Implementation
+async function radixSortMSB(bars, context) {
+    let maxVal = 0;
+    for (let i = 0; i < bars.length; i++) {
+        maxVal = Math.max(maxVal, parseInt(bars[i].style.height));
+    }
+    // Calculate max bits required. Max height is 100%, so 7 bits (2^7=128) is enough.
+    // Or we can do decimal MSB. Let's do Decimal for visualization as it's more intuitive 
+    // but typically MSB is binary. However, bars are 0-100. Let's do base 10 recursive.
+
+    // Determining max power of 10
+    let maxExp = 1;
+    while (Math.floor(maxVal / maxExp) >= 10) {
+        maxExp *= 10;
+    }
+
+    await radixMSBRecursive(bars, 0, bars.length - 1, maxExp, context);
+
+    for (let i = 0; i < bars.length; i++) bars[i].classList.add('bar-sorted');
+}
+
+async function radixMSBRecursive(bars, start, end, exp, context) {
+    if (start >= end || exp < 1) return;
+
+    // Use buckets for stability or in-place partition?
+    // In-place MSB is essentially American Flag sort or similar.
+    // To keep it distinct from American Flag, let's just make this a stable recursive bucket verification?
+    // Or just a standard MSB exchange.
+    // Let's implement a Bucket-like distribution for this step using an auxiliary array (Stable).
+    // Note: Visualizing auxiliary array is tricky with 'bars' references. 
+    // We will do a counting-sort like pass but strictly for the current digit 'exp'.
+
+    // 1. Count frequencies
+    let count = new Array(10).fill(0);
+    for (let i = start; i <= end; i++) {
+        bars[i].classList.add('bar-compare');
+        playNote(200 + parseInt(bars[i].style.height) * 5);
+        await sleep(getDelay() / 2);
+
+        let val = parseInt(bars[i].style.height);
+        let digit = Math.floor(val / exp) % 10;
+        count[digit]++;
+
+        bars[i].classList.remove('bar-compare');
+    }
+
+    // 2. Compute starting indices
+    let startIdx = new Array(10).fill(0);
+    // Local start offsets relative to 'start'
+    startIdx[0] = 0;
+    for (let i = 1; i < 10; i++) {
+        startIdx[i] = startIdx[i - 1] + count[i - 1];
+    }
+
+    // 3. Move elements
+    // We need a temp buffer to hold values because swapping in-place for stable radix is hard.
+    let buffer = new Array(end - start + 1);
+    for (let i = start; i <= end; i++) {
+        let val = parseInt(bars[i].style.height);
+        let digit = Math.floor(val / exp) % 10;
+        buffer[startIdx[digit]] = val;
+        startIdx[digit]++;
+    }
+
+    // 4. Write back to bars
+    for (let i = 0; i < buffer.length; i++) {
+        let actualIdx = start + i;
+        bars[actualIdx].classList.add('bar-swap');
+        bars[actualIdx].style.height = `${buffer[i]}%`;
+        playNote(200 + buffer[i] * 5, "square");
+        context.incrementSwap(); // assignment
+        await sleep(getDelay());
+        bars[actualIdx].classList.remove('bar-swap');
+    }
+
+    // Recurse
+    // We need to recover the start indices for recursion boundaries.
+    // Recompute prefix sums
+    let prefixSum = new Array(10).fill(0);
+    prefixSum[0] = 0;
+    for (let i = 1; i < 10; i++) {
+        prefixSum[i] = prefixSum[i - 1] + count[i - 1];
+    }
+
+    for (let i = 0; i < 10; i++) {
+        let s = start + prefixSum[i];
+        let e = s + count[i] - 1;
+        if (s < e) {
+            await radixMSBRecursive(bars, s, e, Math.floor(exp / 10), context);
+        }
+    }
+}
+
+// Bucket Sort Implementation
+async function bucketSort(bars, context) {
+    const n = bars.length;
+    if (n <= 0) return;
+
+    // 1. Create buckets
+    // We'll use 10 buckets for 0-9, 10-19, etc. since data is 0-100.
+    const k = 10;
+    let buckets = Array.from({ length: k }, () => []);
+
+    // 2. Distribute
+    for (let i = 0; i < n; i++) {
+        bars[i].classList.add('bar-compare');
+        playNote(200 + parseInt(bars[i].style.height) * 5);
+        await sleep(getDelay());
+
+        let val = parseInt(bars[i].style.height);
+        // Normalized bucket index. Max val is ~100.
+        // val/100 * k ?  Assume val is 0-100.
+        let bIdx = Math.floor((val / 100) * k);
+        if (bIdx >= k) bIdx = k - 1;
+
+        buckets[bIdx].push(val);
+
+        // Visualize: maybe color it based on bucket?
+        bars[i].style.backgroundColor = getBucketColor(bIdx, k);
+
+        context.incrementComparison(); // Checking value
+        bars[i].classList.remove('bar-compare');
+    }
+
+    await sleep(getDelay() * 2);
+
+    // 3. Sort Buckets and Merge back
+    let index = 0;
+    for (let i = 0; i < k; i++) {
+        // We'll assume these individual bucket sorts happen "internally" or we visualize placement
+        // Let's sort the bucket using a simple sort (native JS sort for simplicity of code, 
+        // but we should visualize the placement).
+        buckets[i].sort((a, b) => a - b);
+
+        for (let j = 0; j < buckets[i].length; j++) {
+            bars[index].classList.add('bar-swap');
+            bars[index].style.height = `${buckets[i][j]}%`;
+            // Reset color
+            if (document.getElementById("rainbow-toggle").checked) {
+                const hue = Math.floor((buckets[i][j] / 100) * 360);
+                bars[index].style.backgroundColor = `hsl(${hue}, 100%, 50%)`;
+            } else {
+                bars[index].style.backgroundColor = '';
+            }
+
+            playNote(200 + buckets[i][j] * 5, "square");
+            context.incrementSwap();
+            await sleep(getDelay());
+            bars[index].classList.remove('bar-swap');
+            index++;
+        }
+    }
+
+    for (let i = 0; i < bars.length; i++) bars[i].classList.add('bar-sorted');
+}
+
+function getBucketColor(idx, total) {
+    const hue = Math.floor((idx / total) * 360);
+    return `hsl(${hue}, 70%, 60%)`;
+}
+
+
+// Counting Sort Implementation
+async function countingSort(bars, context) {
+    const n = bars.length;
+    if (n === 0) return;
+
+    let maxVal = 0;
+    for (let i = 0; i < n; i++) {
+        maxVal = Math.max(maxVal, parseInt(bars[i].style.height));
+    }
+
+    let count = new Array(maxVal + 1).fill(0);
+
+    // Count Value Visualization
+    for (let i = 0; i < n; i++) {
+        bars[i].classList.add('bar-compare');
+        playNote(200 + parseInt(bars[i].style.height) * 5);
+        await sleep(getDelay() / 2);
+
+        let val = parseInt(bars[i].style.height);
+        count[val]++;
+        context.incrementComparison(); // Register scan
+
+        bars[i].classList.remove('bar-compare');
+    }
+
+    // Reconstruct
+    let index = 0;
+    for (let i = 0; i <= maxVal; i++) {
+        while (count[i] > 0) {
+            bars[index].classList.add('bar-swap');
+            bars[index].style.height = `${i}%`;
+            playNote(200 + i * 5, "square");
+
+            // Re-apply rainbow if needed
+            if (document.getElementById("rainbow-toggle").checked) {
+                const hue = Math.floor((i / 100) * 360);
+                bars[index].style.backgroundColor = `hsl(${hue}, 100%, 50%)`;
+            }
+
+            context.incrementSwap();
+            await sleep(getDelay());
+
+            bars[index].classList.remove('bar-swap');
+            index++;
+            count[i]--;
+        }
+    }
+    for (let i = 0; i < bars.length; i++) bars[i].classList.add('bar-sorted');
+}
+
+// Flash Sort Implementation
+async function flashSort(bars, context) {
+    const n = bars.length;
+    if (n === 0) return;
+
+    // 1. Classification
+    // Find min and max
+    let minVal = parseInt(bars[0].style.height);
+    let maxIdx = 0;
+
+    for (let i = 0; i < n; i++) {
+        bars[i].classList.add('bar-compare');
+        let val = parseInt(bars[i].style.height);
+        if (val < minVal) minVal = val;
+        if (val > parseInt(bars[maxIdx].style.height)) maxIdx = i;
+        await sleep(getDelay() / 4);
+        bars[i].classList.remove('bar-compare');
+    }
+
+    let maxVal = parseInt(bars[maxIdx].style.height);
+
+    if (maxVal === minVal) {
+        for (let i = 0; i < bars.length; i++) bars[i].classList.add('bar-sorted');
+        return;
+    }
+
+    // Number of classes/buckets (m) using roughly 0.43 * n
+    let m = Math.floor(0.43 * n);
+    if (m < 2) m = 2;
+
+    let l = new Array(m).fill(0);
+
+    // Count class sizes
+    const c1 = (m - 1) / (maxVal - minVal);
+
+    for (let i = 0; i < n; i++) {
+        let val = parseInt(bars[i].style.height);
+        let k = Math.floor(c1 * (val - minVal));
+        l[k]++;
+        context.incrementComparison();
+    }
+
+    // Accumulate (prefix sum) -> simplified Logic to get upper bounds
+    for (let k = 1; k < m; k++) {
+        l[k] += l[k - 1];
+    }
+
+    // 2. Permutation (Cyclic Shift)
+    // Swap max to start
+    await swapBars(bars[0], bars[maxIdx]);
+    context.incrementSwap();
+
+    let move = 0;
+    let j = 0;
+    let k = m - 1;
+
+    while (move < n - 1) {
+        while (j > l[k] - 1) {
+            j++;
+            let val = parseInt(bars[j].style.height);
+            k = Math.floor(c1 * (val - minVal));
+        }
+
+        let flash = bars[j]; // The item we are holding
+        // Ideally we follow cyclic logic.
+        // We look at where flash belongs.
+        // The implementation on arrays usually tracks 'flash' value and index.
+        // Here we operate on DOM.
+
+        // Find class of current bars[j]
+        let val = parseInt(bars[j].style.height);
+        k = Math.floor(c1 * (val - minVal));
+
+        while (j !== l[k]) { // While not at correct top location
+            k = Math.floor(c1 * (parseInt(bars[j].style.height) - minVal));
+            let targetIdx = l[k] - 1;
+
+            bars[j].classList.add('bar-swap');
+            bars[targetIdx].classList.add('bar-swap');
+            playNote(200 + parseInt(bars[targetIdx].style.height) * 5, "square");
+
+            await swapBars(bars[j], bars[targetIdx]);
+            context.incrementSwap();
+
+            bars[j].classList.remove('bar-swap');
+            bars[targetIdx].classList.remove('bar-swap');
+
+            l[k]--; // Decrement pointer for this class
+            move++;
+
+            // After swap, bars[j] has a new value, we compute k again in loop condition
+        }
+    }
+
+    // 3. Insertion Sort on resulting array
+    await insertionSort(bars, context);
+    // Flash sort ends with insertion sort for cleanup
+}
+
+// American Flag Sort Implementation
+// Optimized Radix (In-place)
+async function americanFlagSort(bars, context) {
+    let maxVal = 0;
+    for (let i = 0; i < bars.length; i++) {
+        let val = parseInt(bars[i].style.height);
+        if (val > maxVal) maxVal = val;
+    }
+
+    // Calculate max divisor (largest power of 10 <= maxVal)
+    let maxDivisor = 1;
+    while (Math.floor(maxVal / maxDivisor) >= 10) maxDivisor *= 10;
+
+    await americanFlagSortRecursive(bars, 0, bars.length - 1, maxDivisor, context);
+    for (let i = 0; i < bars.length; i++) bars[i].classList.add('bar-sorted');
+}
+
+async function americanFlagSortRecursive(bars, start, end, divisor, context) {
+    if (start >= end || divisor < 1) return;
+
+    let count = new Array(10).fill(0);
+    let offset = new Array(10).fill(0);
+
+    // Count
+    for (let i = start; i <= end; i++) {
+        let val = parseInt(bars[i].style.height);
+        let digit = Math.floor(val / divisor) % 10;
+        count[digit]++;
+    }
+
+    offset[0] = start;
+    let computedStart = new Array(10); // Save for recursion
+    computedStart[0] = start;
+
+    for (let k = 1; k < 10; k++) {
+        offset[k] = offset[k - 1] + count[k - 1];
+        computedStart[k] = offset[k];
+    }
+
+    // In-place distribution
+    for (let b = 0; b < 10; b++) {
+        while (count[b] > 0) {
+            let origin = offset[b];
+            let val = parseInt(bars[origin].style.height);
+            let digit = Math.floor(val / divisor) % 10;
+
+            if (digit === b) {
+                offset[b]++;
+                count[b]--;
+            } else {
+                let target = offset[digit];
+
+                bars[origin].classList.add('bar-swap');
+                bars[target].classList.add('bar-swap');
+                playNote(200 + parseInt(bars[target].style.height) * 5, "square");
+
+                await swapBars(bars[origin], bars[target]);
+                context.incrementSwap();
+
+                bars[origin].classList.remove('bar-swap');
+                bars[target].classList.remove('bar-swap');
+
+                offset[digit]++;
+                count[digit]--;
+                await sleep(getDelay());
+            }
+        }
+    }
+
+    // Recursive calls
+    for (let i = 0; i < 10; i++) {
+        // e is computedStart[i?] No.
+        // range for digit i is [computedStart[i], computedStart[i] + originally_counted[i] - 1]
+        // But we lost original count? No, we used count[b] to 0. 
+        // We can recover or just use computedStart[i] to computedStart[i+1]-1
+        let s = computedStart[i];
+        let e = (i === 9) ? end : computedStart[i + 1] - 1;
+        if (s < e) {
+            await americanFlagSortRecursive(bars, s, e, Math.floor(divisor / 10), context);
+        }
+    }
+}
+
 // --- Menu Toggle Logic ---
+
 {
     const menuToggle = document.getElementById('menu-toggle');
     const menuClose = document.getElementById('menu-close');
