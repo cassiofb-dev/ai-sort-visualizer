@@ -2,6 +2,7 @@ const visualizerGrid = document.getElementById("visualizer-grid");
 const generateBtn = document.getElementById("generate-btn");
 const sortBtn = document.getElementById("sort-btn");
 const arraySizeInput = document.getElementById("array-size");
+const arrayPresetSelect = document.getElementById("array-preset");
 const speedInput = document.getElementById("speed");
 const soundToggle = document.getElementById("sound-toggle");
 const algorithmSelect = document.getElementById("algorithm-select");
@@ -288,9 +289,41 @@ const generateArray = () => {
     arraySizeInput.value = size;
 
     currentBaseArray = [];
-    for (let i = 0; i < size; i++) {
-        const value = Math.floor(Math.random() * 95) + 5;
-        currentBaseArray.push(value);
+    const preset = arrayPresetSelect.value;
+
+    if (preset === "random") {
+        for (let i = 0; i < size; i++) {
+            currentBaseArray.push(Math.floor(Math.random() * 95) + 5);
+        }
+    } else if (preset === "reverse") {
+        for (let i = 0; i < size; i++) {
+            // Map 0 -> 100, size-1 -> 5
+            const val = 100 - Math.floor((i / (size - 1)) * 95);
+            currentBaseArray.push(val);
+        }
+    } else if (preset === "sorted") {
+        for (let i = 0; i < size; i++) {
+            // Map 0 -> 5, size-1 -> 100
+            const val = 5 + Math.floor((i / (size - 1)) * 95);
+            currentBaseArray.push(val);
+        }
+    } else if (preset === "almost") {
+        for (let i = 0; i < size; i++) {
+            const val = 5 + Math.floor((i / (size - 1)) * 95);
+            currentBaseArray.push(val);
+        }
+        // Swap a few pairs
+        const swapCount = Math.max(1, Math.floor(size / 10)); // 10% swaps
+        for (let k = 0; k < swapCount; k++) {
+            const idx1 = Math.floor(Math.random() * size);
+            const idx2 = Math.floor(Math.random() * size);
+            [currentBaseArray[idx1], currentBaseArray[idx2]] = [currentBaseArray[idx2], currentBaseArray[idx1]];
+        }
+    } else if (preset === "few_unique") {
+        const uniqueValues = [10, 30, 50, 70, 90];
+        for (let i = 0; i < size; i++) {
+            currentBaseArray.push(uniqueValues[Math.floor(Math.random() * uniqueValues.length)]);
+        }
     }
 
     // 3. Re-create Visualizers
@@ -337,6 +370,7 @@ const uiLoop = () => {
 // Event Listeners
 generateBtn.addEventListener("click", generateArray);
 arraySizeInput.addEventListener("input", generateArray);
+arrayPresetSelect.addEventListener("change", generateArray);
 speedInput.addEventListener("input", updateDelay); // Update delay immediately
 // When algorithm selection changes, we don't necessarily regenerate IMMEDIATELY if we want to keep data,
 // but for simplicity, let's regenerate to update the view.
