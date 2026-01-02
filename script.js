@@ -399,6 +399,11 @@ const startSort = async () => {
         else if (algo === "counting") await countingSort(bars, context);
         else if (algo === "flash") await flashSort(bars, context);
         else if (algo === "american_flag") await americanFlagSort(bars, context);
+        else if (algo === "powersort") await powerSort(bars, context);
+        else if (algo === "pdqsort") await pdqSort(bars, context);
+        else if (algo === "fluxsort") await fluxSort(bars, context);
+        else if (algo === "wolfsort") await wolfSort(bars, context);
+        else if (algo === "quadsort") await quadSort(bars, context);
 
         viz.endTime = performance.now();
     });
@@ -2556,4 +2561,295 @@ async function americanFlagSortRecursive(bars, start, end, divisor, context) {
             closeMenu();
         }
     });
+}
+
+// --- New Algorithms ---
+
+// Quadsort Implementation (Visualizer-friendly 4-way merge sort)
+async function quadSort(bars, context) {
+    await quadSortRecursive(bars, 0, bars.length - 1, context);
+    for (let i = 0; i < bars.length; i++) bars[i].classList.add('bar-sorted');
+}
+
+async function quadSortRecursive(bars, start, end, context) {
+    if (start >= end) return;
+
+    const len = end - start + 1;
+    if (len < 4) {
+        await insertionSortRange(bars, start, end, context);
+        return;
+    }
+
+    const q1 = Math.floor(len / 4);
+    const q2 = Math.floor(len / 2);
+    const q3 = Math.floor(3 * len / 4);
+
+    const mid1 = start + q1;
+    const mid2 = start + q2;
+    const mid3 = start + q3;
+
+    await quadSortRecursive(bars, start, mid1 - 1, context);
+    await quadSortRecursive(bars, mid1, mid2 - 1, context);
+    await quadSortRecursive(bars, mid2, mid3 - 1, context);
+    await quadSortRecursive(bars, mid3, end, context);
+
+    await quadMerge(bars, start, mid1, mid2, mid3, end, context);
+}
+
+// Helper for Quadsort
+async function insertionSortRange(bars, start, end, context) {
+    for (let i = start + 1; i <= end; i++) {
+        let j = i;
+        bars[i].classList.add('bar-compare');
+        playNote(200 + parseInt(bars[i].style.height) * 5);
+        await sleep(getDelay());
+
+        while (j > start) {
+            bars[j].classList.add('bar-compare');
+            bars[j - 1].classList.add('bar-compare');
+            context.incrementComparison();
+
+            if (parseInt(bars[j - 1].style.height) > parseInt(bars[j].style.height)) {
+                await swapBars(bars[j], bars[j - 1]);
+                context.incrementSwap();
+                bars[j].classList.remove('bar-compare');
+                bars[j - 1].classList.remove('bar-compare');
+                j--;
+            } else {
+                bars[j].classList.remove('bar-compare');
+                bars[j - 1].classList.remove('bar-compare');
+                break;
+            }
+        }
+        bars[i].classList.remove('bar-compare');
+    }
+}
+
+async function quadMerge(bars, start, mid1, mid2, mid3, end, context) {
+    // 4-way merge visualized as iterative merges or just sequential standard merges
+    // ((A+B) + (C+D))
+    await merge(bars, start, mid1 - 1, mid2 - 1, context);
+    await merge(bars, mid2, mid3 - 1, end, context);
+    await merge(bars, start, mid2 - 1, end, context);
+}
+
+// Fluxsort Implementation (Stable Quicksort approximation)
+async function fluxSort(bars, context) {
+    await fluxSortRecursive(bars, 0, bars.length - 1, context);
+    for (let i = 0; i < bars.length; i++) bars[i].classList.add('bar-sorted');
+}
+
+async function fluxSortRecursive(bars, low, high, context) {
+    if (low >= high) return;
+
+    // Stable Partition returns boundaries of the Equal range
+    const [eqStart, eqEnd] = await fluxPartition(bars, low, high, context);
+
+    await fluxSortRecursive(bars, low, eqStart - 1, context);
+    await fluxSortRecursive(bars, eqEnd + 1, high, context);
+}
+
+async function fluxPartition(bars, low, high, context) {
+    const mid = Math.floor((low + high) / 2);
+    const pivotVal = parseInt(bars[mid].style.height);
+    bars[mid].classList.add('bar-compare'); // Mark pivot
+
+    let leftList = [];
+    let equalList = [];
+    let rightList = [];
+
+    // 1. Buffer phase
+    for (let i = low; i <= high; i++) {
+        bars[i].classList.add('bar-compare');
+        playNote(200 + parseInt(bars[i].style.height) * 5);
+        if (getDelay() > 0) await sleep(getDelay() / 4);
+
+        const val = parseInt(bars[i].style.height);
+        const hStr = bars[i].style.height;
+        context.incrementComparison();
+
+        if (val < pivotVal) leftList.push(hStr);
+        else if (val === pivotVal) equalList.push(hStr);
+        else rightList.push(hStr);
+
+        bars[i].classList.remove('bar-compare');
+    }
+
+    // 2. Write back phase
+    let k = low;
+    const all = [...leftList, ...equalList, ...rightList];
+
+    for (let i = 0; i < all.length; i++) {
+        // Only swap/write if different to save operations if already in place?
+        // But for visualizer, we want to show the 'flux' of rewriting.
+        // If we write same value, it's cheap.
+        bars[k].classList.add('bar-swap');
+        bars[k].style.height = all[i];
+        playNote(200 + parseInt(bars[k].style.height) * 5, "square");
+        context.incrementSwap(); // assignment count
+        await sleep(getDelay());
+        bars[k].classList.remove('bar-swap');
+        k++;
+    }
+
+    const eqStart = low + leftList.length;
+    const eqEnd = eqStart + equalList.length - 1;
+
+    return [eqStart, eqEnd];
+}
+
+// Wolfsort Implementation (Adaptive Merge Sort)
+async function wolfSort(bars, context) {
+    let runs = [];
+    let start = 0;
+    const len = bars.length;
+
+    if (len < 2) return;
+
+    // 1. Scan for Runs
+    while (start < len) {
+        let end = start;
+        let ascending = true;
+
+        // Find run length
+        while (end < len - 1) {
+            const val = parseInt(bars[end].style.height);
+            const nextVal = parseInt(bars[end + 1].style.height);
+
+            if (end === start) {
+                if (val > nextVal) ascending = false;
+            } else {
+                if (ascending && val > nextVal) break;
+                if (!ascending && val < nextVal) break;
+            }
+
+            bars[end].classList.add('bar-compare');
+            await sleep(getDelay() / 2);
+            bars[end].classList.remove('bar-compare');
+            end++;
+        }
+        bars[end].classList.add('bar-compare');
+        await sleep(getDelay() / 2);
+        bars[end].classList.remove('bar-compare');
+
+        if (!ascending) {
+            await reverseRange(bars, start, end, context);
+        }
+
+        runs.push({ start, end });
+        start = end + 1;
+    }
+
+    // 2. Merge Runs
+    while (runs.length > 1) {
+        let newRuns = [];
+        for (let i = 0; i < runs.length; i += 2) {
+            if (i + 1 < runs.length) {
+                const runA = runs[i];
+                const runB = runs[i + 1];
+                await merge(bars, runA.start, runA.end, runB.end, context);
+                newRuns.push({ start: runA.start, end: runB.end });
+            } else {
+                newRuns.push(runs[i]);
+            }
+        }
+        runs = newRuns;
+    }
+
+    for (let i = 0; i < len; i++) bars[i].classList.add('bar-sorted');
+}
+
+async function reverseRange(bars, start, end, context) {
+    let i = start, j = end;
+    while (i < j) {
+        bars[i].classList.add('bar-swap');
+        bars[j].classList.add('bar-swap');
+        playNote(200 + parseInt(bars[i].style.height) * 5, "square");
+
+        await swapBars(bars[i], bars[j]);
+        context.incrementSwap();
+
+        bars[i].classList.remove('bar-swap');
+        bars[j].classList.remove('bar-swap');
+        i++;
+        j--;
+    }
+}
+
+// Powersort Implementation (Simulated Run-based Merge)
+async function powerSort(bars, context) {
+    // Powersort optimizes merge order. We'll simulate by finding runs then merging.
+    // Similar to Wolfsort but without the explicit "Ascending/Descending" reversals (simplified for visual distinction if desired, but Powersort is also adaptive).
+    // To distinguish: We'll implement a slightly different run detector or correct "Node Power" logic is too complex for visualizer in 1 file.
+    // We will use standard natural merge sort logic.
+
+    let runs = [];
+    let start = 0;
+    const len = bars.length;
+
+    while (start < len) {
+        let end = start;
+        // Find strictly ascending runs
+        while (end < len - 1) {
+            bars[end].classList.add('bar-compare');
+            await sleep(getDelay() / 4);
+            bars[end].classList.remove('bar-compare');
+
+            const val = parseInt(bars[end].style.height);
+            const nextVal = parseInt(bars[end + 1].style.height);
+            if (val > nextVal) break;
+            end++;
+        }
+        runs.push({ start, end });
+        start = end + 1;
+    }
+
+    // Merge Strategy: Merge adjacent runs.
+    while (runs.length > 1) {
+        let newRuns = [];
+        for (let i = 0; i < runs.length; i += 2) {
+            if (i + 1 < runs.length) {
+                const runA = runs[i];
+                const runB = runs[i + 1];
+                await merge(bars, runA.start, runA.end, runB.end, context);
+                newRuns.push({ start: runA.start, end: runB.end });
+            } else {
+                newRuns.push(runs[i]);
+            }
+        }
+        runs = newRuns;
+    }
+    for (let i = 0; i < len; i++) bars[i].classList.add('bar-sorted');
+}
+
+// PDQSort Implementation (Pattern-Defeating Quicksort)
+async function pdqSort(bars, context) {
+    await pdqSortRecursive(bars, 0, bars.length - 1, context);
+    for (let i = 0; i < bars.length; i++) bars[i].classList.add('bar-sorted');
+}
+
+async function pdqSortRecursive(bars, begin, end, context) {
+    if (begin >= end) return;
+
+    // 1. Insertion Sort for small arrays
+    if (end - begin < 12) {
+        await insertionSortRange(bars, begin, end, context);
+        return;
+    }
+
+    // 2. Check for sorted (Pattern Defeating)
+    let sorted = true;
+    for (let i = begin; i < end; i++) {
+        if (parseInt(bars[i].style.height) > parseInt(bars[i + 1].style.height)) {
+            sorted = false; break;
+        }
+    }
+    if (sorted) return;
+
+    // 3. Partition
+    // For PDQ, we'd normally shuffle if bad pivot, but here we just partition.
+    const pivotIdx = await partition(bars, begin, end, context); // Reuse standard Lomuto partition
+
+    await pdqSortRecursive(bars, begin, pivotIdx - 1, context);
+    await pdqSortRecursive(bars, pivotIdx + 1, end, context);
 }
